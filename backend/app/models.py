@@ -34,7 +34,7 @@ class TeamMember(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
-    role = Column(Enum(Role), default=Role.member)
+    role = Column(Enum(Role), default=Role.member, nullable=False)
 
 
 class Task(Base):
@@ -46,9 +46,10 @@ class Task(Base):
     assignee_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     deadline = Column(DateTime, nullable=False)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
-    done = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    done = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    notified_at = Column(DateTime, nullable=True)
 
     steps = relationship("RoadmapStep", back_populates="task", cascade="all, delete-orphan")
 
@@ -59,7 +60,7 @@ class RoadmapStep(Base):
     id = Column(Integer, primary_key=True)
     task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
     title = Column(String, nullable=False)
-    done = Column(Boolean, default=False)
+    done = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

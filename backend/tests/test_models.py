@@ -7,7 +7,7 @@ from app.database import Base
 from app.models import User, Team, TeamMember, Task, RoadmapStep, Role
 
 
-def test_basic_models():
+def test_create_user_team_task_round_trip():
     """Test User, Team, TeamMember model creation"""
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
@@ -45,7 +45,7 @@ def test_basic_models():
     assert db.query(Task).first().done == False
 
 
-def test_task_with_roadmap_steps():
+def test_roadmap_step_belongs_to_task():
     """Test Task with RoadmapStep relationship"""
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
