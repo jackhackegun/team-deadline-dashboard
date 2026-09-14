@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>팀 프로젝트 데드라인 대시보드 — 목업</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Apple SD Gothic Neo", sans-serif; background:#f3f4f6; margin:0; padding:32px; color:#111827; }
+  h1 { font-size:18px; color:#6b7280; margin:0 0 24px; }
+  section { background:#fff; border-radius:12px; padding:24px; max-width:720px; margin:0 auto 40px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  section h2 { margin-top:0; font-size:15px; color:#9ca3af; font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
+
+  /* --- 1. 로그인 --- */
+  .login-box { max-width:320px; margin:0 auto; }
+  .field { margin-bottom:12px; }
+  .field label { display:block; font-size:13px; margin-bottom:4px; color:#374151; }
+  .field input { width:100%; padding:10px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; }
+  .btn { width:100%; padding:10px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }
+  .link { text-align:center; font-size:13px; color:#6366f1; margin-top:10px; }
+
+  /* --- 2. 팀 목록 --- */
+  .team-row { display:flex; justify-content:space-between; align-items:center; padding:14px 0; border-bottom:1px solid #f0f0f0; }
+  .team-row:last-child { border-bottom:none; }
+  .team-name { font-weight:600; }
+  .team-meta { font-size:12px; color:#9ca3af; }
+  .btn-sm { padding:6px 12px; border-radius:6px; border:1px solid #d1d5db; background:#fff; font-size:12px; cursor:pointer; }
+  .add-row { display:flex; gap:8px; margin-top:16px; }
+  .add-row input { flex:1; padding:8px; border:1px solid #d1d5db; border-radius:6px; }
+  .add-row button { padding:8px 14px; border-radius:6px; border:none; background:#4f46e5; color:#fff; font-size:13px; }
+
+  /* --- 3. 대시보드 --- */
+  .dash-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+  .dash-title { font-size:20px; font-weight:700; }
+
+  .gauge { position:relative; width:110px; height:110px; border-radius:50%; flex-shrink:0; }
+  .gauge::after { content: attr(data-label); position:absolute; inset:12px; background:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; }
+  .gauge-lg { width:130px; height:130px; }
+  .gauge-lg::after { inset:14px; font-size:20px; }
+
+  .member-list { display:flex; flex-direction:column; gap:14px; margin:16px 0 24px; }
+  .member-card { display:flex; align-items:center; gap:16px; padding:12px; border:1px solid #f0f0f0; border-radius:10px; }
+  .member-card .gauge { width:60px; height:60px; }
+  .member-card .gauge::after { inset:7px; font-size:12px; }
+  .member-info { flex:1; }
+  .member-name { font-weight:600; margin-bottom:2px; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; }
+  .badge-warn { background:#fee2e2; color:#dc2626; }
+  .badge-ok { background:#dcfce7; color:#16a34a; }
+
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; color:#9ca3af; font-weight:600; padding:8px; border-bottom:1px solid #eee; }
+  td { padding:10px 8px; border-bottom:1px solid #f5f5f5; }
+  tr.overdue { background:#fef2f2; }
+  tr.soon { background:#fffbeb; }
+  .status-pill { padding:3px 10px; border-radius:10px; font-size:11px; font-weight:600; }
+  .status-todo { background:#f3f4f6; color:#6b7280; }
+  .status-doing { background:#dbeafe; color:#2563eb; }
+  .status-done { background:#dcfce7; color:#16a34a; }
+</style>
+</head>
+<body>
+
+<h1>목업 1 — 로그인</h1>
+<section>
+  <h2>Login</h2>
+  <div class="login-box">
+    <div class="field"><label>이메일</label><input placeholder="you@example.com"></div>
+    <div class="field"><label>비밀번호</label><input type="password"></div>
+    <button class="btn">로그인</button>
+    <div class="link">계정이 없으신가요? 회원가입</div>
+  </div>
+</section>
+
+<h1>목업 2 — 팀 목록 (/teams)</h1>
+<section>
+  <h2>내 팀</h2>
+  <div class="team-row">
+    <div><div class="team-name">캡스톤 프로젝트</div><div class="team-meta">멤버 4명</div></div>
+    <button class="btn-sm">열기 →</button>
+  </div>
+  <div class="team-row">
+    <div><div class="team-name">알고리즘 스터디</div><div class="team-meta">멤버 3명</div></div>
+    <button class="btn-sm">열기 →</button>
+  </div>
+  <div class="add-row">
+    <input placeholder="초대코드 입력">
+    <button>합류하기</button>
+  </div>
+</section>
+
+<h1>목업 3 — 대시보드 (/teams/:id)</h1>
+<section>
+  <div class="dash-header">
+    <div class="dash-title">캡스톤 프로젝트</div>
+    <div class="gauge gauge-lg" data-label="68%" style="background: conic-gradient(#4f46e5 calc(68*3.6deg), #e5e7eb 0);"></div>
+  </div>
+
+  <h2>멤버별 진행률</h2>
+  <div class="member-list">
+    <div class="member-card">
+      <div class="gauge" data-label="90%" style="background: conic-gradient(#16a34a calc(90*3.6deg), #e5e7eb 0);"></div>
+      <div class="member-info"><div class="member-name">김민수</div><span class="badge badge-ok">미완료 1개</span></div>
+    </div>
+    <div class="member-card">
+      <div class="gauge" data-label="30%" style="background: conic-gradient(#dc2626 calc(30*3.6deg), #e5e7eb 0);"></div>
+      <div class="member-info"><div class="member-name">이서연</div><span class="badge badge-warn">미완료 3개 (D-1↓)</span></div>
+    </div>
+    <div class="member-card">
+      <div class="gauge" data-label="75%" style="background: conic-gradient(#4f46e5 calc(75*3.6deg), #e5e7eb 0);"></div>
+      <div class="member-info"><div class="member-name">박지훈</div><span class="badge badge-ok">미완료 1개</span></div>
+    </div>
+  </div>
+
+  <h2>할 일 목록</h2>
+  <table>
+    <tr><th>제목</th><th>담당자</th><th>마감일</th><th>상태</th></tr>
+    <tr class="overdue">
+      <td>발표자료 초안</td><td>이서연</td><td>9/7 (초과)</td>
+      <td><span class="status-pill status-todo">todo</span></td>
+    </tr>
+    <tr class="soon">
+      <td>DB 스키마 설계</td><td>이서연</td><td>9/9 (D-1)</td>
+      <td><span class="status-pill status-doing">doing</span></td>
+    </tr>
+    <tr>
+      <td>API 명세 작성</td><td>박지훈</td><td>9/12</td>
+      <td><span class="status-pill status-doing">doing</span></td>
+    </tr>
+    <tr>
+      <td>와이어프레임</td><td>김민수</td><td>9/10</td>
+      <td><span class="status-pill status-done">done</span></td>
+    </tr>
+  </table>
+</section>
+
+</body>
+</html>
