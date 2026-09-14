@@ -2,25 +2,36 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>팀 프로젝트 데드라인 대시보드 — 목업</title>
+<title>팀 프로젝트 데드라인 대시보드</title>
 <style>
   * { box-sizing: border-box; }
-  body { font-family: -apple-system, "Apple SD Gothic Neo", sans-serif; background:#f3f4f6; margin:0; padding:32px; color:#111827; }
-  h1 { font-size:18px; color:#6b7280; margin:0 0 8px; }
-  .api-ref { font-size:12px; color:#9ca3af; margin:0 0 16px; font-family:ui-monospace, monospace; }
-  section { background:#fff; border-radius:12px; padding:24px; max-width:720px; margin:0 auto 40px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  body { font-family: -apple-system, "Apple SD Gothic Neo", sans-serif; background:#f3f4f6; margin:0; color:#111827; }
+  .screen { display:none; }
+  .screen.active { display:block; }
+
+  /* --- 상단 네비게이션 --- */
+  .navbar { display:flex; align-items:center; justify-content:space-between; padding:14px 32px; background:#fff; border-bottom:1px solid #eee; }
+  .navbar .brand { font-weight:700; font-size:15px; }
+  .navbar .brand .back { color:#9ca3af; font-weight:400; cursor:pointer; margin-right:8px; }
+  .navbar .user { font-size:13px; color:#6b7280; display:flex; align-items:center; gap:14px; }
+  .navbar .user a { color:#6366f1; cursor:pointer; text-decoration:none; }
+
+  .page { max-width:720px; margin:32px auto; padding:0 24px 60px; }
+  section { background:#fff; border-radius:12px; padding:24px; margin-bottom:24px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
   section h2 { margin-top:0; font-size:15px; color:#9ca3af; font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
 
-  /* --- 1/2. 로그인 · 회원가입 --- */
-  .login-box { max-width:320px; margin:0 auto; }
+  /* --- 로그인 · 회원가입 --- */
+  .auth-page { display:flex; align-items:center; justify-content:center; min-height:100vh; }
+  .login-box { width:320px; }
+  .login-box h1 { text-align:center; font-size:18px; margin-bottom:24px; }
   .field { margin-bottom:12px; }
   .field label { display:block; font-size:13px; margin-bottom:4px; color:#374151; }
   .field input, .field select { width:100%; padding:10px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; }
-  .field-err { font-size:12px; color:#dc2626; margin-top:4px; }
+  .field-err { font-size:12px; color:#dc2626; margin-top:4px; min-height:14px; }
   .btn { width:100%; padding:10px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }
-  .link { text-align:center; font-size:13px; color:#6366f1; margin-top:10px; }
+  .link { text-align:center; font-size:13px; color:#6366f1; margin-top:10px; cursor:pointer; }
 
-  /* --- 3. 팀 목록 --- */
+  /* --- 팀 목록 --- */
   .team-row { display:flex; justify-content:space-between; align-items:center; padding:14px 0; border-bottom:1px solid #f0f0f0; }
   .team-row:last-child { border-bottom:none; }
   .team-name { font-weight:600; }
@@ -31,21 +42,20 @@
   .add-row input { flex:1; padding:8px; border:1px solid #d1d5db; border-radius:6px; }
   .add-row button { padding:8px 14px; border-radius:6px; border:none; background:#4f46e5; color:#fff; font-size:13px; cursor:pointer; white-space:nowrap; }
   .divider { border:none; border-top:1px solid #f0f0f0; margin:20px 0; }
+  .empty { font-size:13px; color:#9ca3af; padding:8px 0; }
 
-  /* --- 4. 대시보드 --- */
+  /* --- 대시보드 --- */
   .dash-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
   .dash-title { font-size:20px; font-weight:700; }
   .dash-sub { font-size:12px; color:#9ca3af; margin-top:2px; }
 
-  .gauge { position:relative; width:110px; height:110px; border-radius:50%; flex-shrink:0; }
-  .gauge::after { content: attr(data-label); position:absolute; inset:12px; background:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; }
+  .gauge { position:relative; width:60px; height:60px; border-radius:50%; flex-shrink:0; }
+  .gauge::after { content: attr(data-label); position:absolute; inset:7px; background:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; }
   .gauge-lg { width:130px; height:130px; }
   .gauge-lg::after { inset:14px; font-size:20px; }
 
   .member-list { display:flex; flex-direction:column; gap:14px; margin:16px 0 24px; }
   .member-card { display:flex; align-items:center; gap:16px; padding:12px; border:1px solid #f0f0f0; border-radius:10px; }
-  .member-card .gauge { width:60px; height:60px; }
-  .member-card .gauge::after { inset:7px; font-size:12px; }
   .member-info { flex:1; }
   .member-name { font-weight:600; margin-bottom:2px; }
   .member-role { font-size:11px; color:#9ca3af; font-weight:400; margin-left:4px; }
@@ -63,13 +73,18 @@
   .task-head { display:flex; align-items:center; gap:10px; }
   .task-head input[type=checkbox] { width:16px; height:16px; flex-shrink:0; }
   .task-title { font-weight:600; font-size:14px; flex:1; }
+  .task-title.done { text-decoration:line-through; color:#9ca3af; }
   .task-meta { font-size:12px; color:#9ca3af; white-space:nowrap; }
   .task-meta.overdue-text { color:#dc2626; font-weight:600; }
   .task-meta.soon-text { color:#d97706; font-weight:600; }
   .task-actions { display:flex; gap:6px; margin-left:8px; }
   .icon-btn { border:none; background:none; color:#9ca3af; cursor:pointer; font-size:13px; padding:2px 4px; }
+  .step-count { font-size:12px; color:#9ca3af; white-space:nowrap; }
 
-  .steps { margin:10px 0 0 26px; padding-left:12px; border-left:2px solid #eef2ff; }
+  .edit-form { display:grid; grid-template-columns:2fr 1fr 1fr auto auto; gap:6px; align-items:center; width:100%; }
+  .edit-form input, .edit-form select { padding:6px; border:1px solid #d1d5db; border-radius:6px; font-size:12px; }
+
+  .steps { margin:10px 0 0 4px; padding-left:12px; border-left:2px solid #eef2ff; }
   .step-row { display:flex; align-items:center; gap:8px; padding:4px 0; font-size:13px; }
   .step-row input[type=checkbox] { width:14px; height:14px; }
   .step-row.done label { text-decoration:line-through; color:#9ca3af; }
@@ -80,151 +95,421 @@
 </head>
 <body>
 
-<h1>목업 1 — 로그인</h1>
-<p class="api-ref">POST /auth/login</p>
-<section>
-  <h2>Login</h2>
-  <div class="login-box">
-    <div class="field"><label>이메일</label><input placeholder="you@example.com"></div>
-    <div class="field"><label>비밀번호</label><input type="password"></div>
-    <button class="btn">로그인</button>
-    <div class="link">계정이 없으신가요? 회원가입</div>
-  </div>
-</section>
-
-<h1>목업 2 — 회원가입</h1>
-<p class="api-ref">POST /auth/signup { email, password, name }</p>
-<section>
-  <h2>Sign up</h2>
-  <div class="login-box">
-    <div class="field"><label>이름</label><input placeholder="홍길동"></div>
-    <div class="field"><label>이메일</label><input placeholder="you@example.com"></div>
-    <div class="field">
-      <label>비밀번호</label><input type="password">
-      <div class="field-err">이미 등록된 이메일입니다 (400 상태 예시)</div>
-    </div>
-    <button class="btn">회원가입</button>
-    <div class="link">이미 계정이 있으신가요? 로그인</div>
-  </div>
-</section>
-
-<h1>목업 3 — 팀 목록 (/teams)</h1>
-<p class="api-ref">GET /teams · POST /teams { name } · POST /teams/:id/join { invite_code }</p>
-<section>
-  <h2>내 팀</h2>
-  <div class="team-row">
-    <div><div class="team-name">캡스톤 프로젝트<span class="role-tag">leader</span></div><div class="team-meta">초대코드 a1b2c3d4</div></div>
-    <button class="btn-sm">열기 →</button>
-  </div>
-  <div class="team-row">
-    <div><div class="team-name">알고리즘 스터디<span class="role-tag">member</span></div><div class="team-meta">초대코드 9f8e7d6c</div></div>
-    <button class="btn-sm">열기 →</button>
-  </div>
-
-  <hr class="divider">
-
-  <h2>새 팀 만들기</h2>
-  <div class="add-row">
-    <input placeholder="팀 이름">
-    <button>만들기</button>
-  </div>
-
-  <h2 style="margin-top:20px;">초대코드로 합류</h2>
-  <div class="add-row">
-    <input placeholder="초대코드 입력">
-    <button>합류하기</button>
-  </div>
-</section>
-
-<h1>목업 4 — 대시보드 (/teams/:id)</h1>
-<p class="api-ref">GET /teams/:id/dashboard · POST /teams/:id/tasks · PATCH·DELETE /tasks/:id · POST /tasks/:id/steps · PATCH /tasks/:id/steps/:step_id</p>
-<section>
-  <div class="dash-header">
-    <div>
-      <div class="dash-title">캡스톤 프로젝트</div>
-      <div class="dash-sub">전체 진행률</div>
-    </div>
-    <div class="gauge gauge-lg" data-label="68%" style="background: conic-gradient(#4f46e5 calc(68*3.6deg), #e5e7eb 0);"></div>
-  </div>
-
-  <h2>멤버별 진행률</h2>
-  <div class="member-list">
-    <div class="member-card">
-      <div class="gauge" data-label="90%" style="background: conic-gradient(#16a34a calc(90*3.6deg), #e5e7eb 0);"></div>
-      <div class="member-info"><div class="member-name">김민수<span class="member-role">leader</span></div><span class="badge badge-ok">미완료 1개</span></div>
-    </div>
-    <div class="member-card">
-      <div class="gauge" data-label="30%" style="background: conic-gradient(#dc2626 calc(30*3.6deg), #e5e7eb 0);"></div>
-      <div class="member-info"><div class="member-name">이서연<span class="member-role">member</span></div><span class="badge badge-warn">미완료 2개 (D-1↓ 1건)</span></div>
-    </div>
-    <div class="member-card">
-      <div class="gauge" data-label="75%" style="background: conic-gradient(#4f46e5 calc(75*3.6deg), #e5e7eb 0);"></div>
-      <div class="member-info"><div class="member-name">박지훈<span class="member-role">member</span></div><span class="badge badge-ok">미완료 1개</span></div>
+<!-- ============ 로그인 ============ -->
+<div id="screen-login" class="screen active">
+  <div class="auth-page">
+    <div class="login-box">
+      <h1>팀 프로젝트 데드라인 대시보드</h1>
+      <form id="form-login">
+        <div class="field"><label>이메일</label><input id="login-email" type="email" placeholder="you@example.com" required></div>
+        <div class="field">
+          <label>비밀번호</label><input id="login-password" type="password" required>
+          <div class="field-err" id="login-err"></div>
+        </div>
+        <button class="btn">로그인</button>
+        <div class="link" data-goto="signup">계정이 없으신가요? 회원가입</div>
+      </form>
     </div>
   </div>
+</div>
 
-  <h2>할 일 추가</h2>
-  <div class="task-form">
-    <input placeholder="제목">
-    <select><option>담당자 선택</option><option>김민수</option><option>이서연</option><option>박지훈</option></select>
-    <input type="date">
-    <button>추가</button>
-  </div>
-
-  <h2>할 일 목록</h2>
-
-  <!-- 로드맵 단계가 있는 Task: 체크박스 대신 진행률로 표시, 단계 체크가 곧 완료 처리 -->
-  <div class="task-card soon">
-    <div class="task-head">
-      <span style="width:16px;"></span>
-      <span class="task-title">발표자료 준비</span>
-      <span class="task-meta soon-text">담당: 이서연 · 마감 9/9 (D-1)</span>
-      <div class="task-actions"><button class="icon-btn">수정</button><button class="icon-btn">삭제</button></div>
-    </div>
-    <div class="steps">
-      <div class="step-row done"><input type="checkbox" checked><label>자료조사</label></div>
-      <div class="step-row done"><input type="checkbox" checked><label>초안작성</label></div>
-      <div class="step-row"><input type="checkbox"><label>디자인</label></div>
-      <div class="step-row"><input type="checkbox"><label>발표연습</label></div>
-      <div class="step-add"><input placeholder="+ 단계 추가"><button>추가</button></div>
+<!-- ============ 회원가입 ============ -->
+<div id="screen-signup" class="screen">
+  <div class="auth-page">
+    <div class="login-box">
+      <h1>회원가입</h1>
+      <form id="form-signup">
+        <div class="field"><label>이름</label><input id="signup-name" placeholder="홍길동" required></div>
+        <div class="field"><label>이메일</label><input id="signup-email" type="email" placeholder="you@example.com" required></div>
+        <div class="field">
+          <label>비밀번호</label><input id="signup-password" type="password" required>
+          <div class="field-err" id="signup-err"></div>
+        </div>
+        <button class="btn">회원가입</button>
+        <div class="link" data-goto="login">이미 계정이 있으신가요? 로그인</div>
+      </form>
     </div>
   </div>
+</div>
 
-  <!-- 로드맵 단계가 없는 Task: 체크박스로 직접 완료 처리 -->
-  <div class="task-card">
-    <div class="task-head">
-      <input type="checkbox">
-      <span class="task-title">회의록 정리</span>
-      <span class="task-meta">담당: 김민수 · 마감 9/12</span>
-      <div class="task-actions"><button class="icon-btn">수정</button><button class="icon-btn">삭제</button></div>
-    </div>
-    <div class="steps">
-      <div class="step-add"><input placeholder="+ 단계 추가"><button>추가</button></div>
-    </div>
+<!-- ============ 팀 목록 ============ -->
+<div id="screen-teams" class="screen">
+  <div class="navbar">
+    <div class="brand">팀 프로젝트 데드라인 대시보드</div>
+    <div class="user"><span id="teams-username"></span><a data-goto="login">로그아웃</a></div>
   </div>
+  <div class="page">
+    <section>
+      <h2>내 팀</h2>
+      <div id="team-rows"></div>
 
-  <!-- 마감 초과 + 완료 -->
-  <div class="task-card overdue">
-    <div class="task-head">
-      <input type="checkbox">
-      <span class="task-title">API 명세 작성</span>
-      <span class="task-meta overdue-text">담당: 박지훈 · 마감 9/7 (초과)</span>
-      <div class="task-actions"><button class="icon-btn">수정</button><button class="icon-btn">삭제</button></div>
-    </div>
-    <div class="steps">
-      <div class="step-add"><input placeholder="+ 단계 추가"><button>추가</button></div>
-    </div>
+      <hr class="divider">
+
+      <h2>새 팀 만들기</h2>
+      <form id="form-create-team" class="add-row">
+        <input id="new-team-name" placeholder="팀 이름" required>
+        <button>만들기</button>
+      </form>
+
+      <h2 style="margin-top:20px;">초대코드로 합류</h2>
+      <form id="form-join-team" class="add-row">
+        <input id="join-code" placeholder="초대코드 입력" required>
+        <button>합류하기</button>
+      </form>
+      <div class="field-err" id="join-err"></div>
+    </section>
   </div>
+</div>
 
-  <div class="task-card">
-    <div class="task-head">
-      <input type="checkbox" checked>
-      <span class="task-title" style="text-decoration:line-through; color:#9ca3af;">와이어프레임</span>
-      <span class="task-meta">담당: 김민수 · 마감 9/10</span>
-      <div class="task-actions"><button class="icon-btn">수정</button><button class="icon-btn">삭제</button></div>
-    </div>
+<!-- ============ 대시보드 ============ -->
+<div id="screen-dashboard" class="screen">
+  <div class="navbar">
+    <div class="brand"><span class="back" data-goto="teams">← 팀 목록</span>|<span id="dash-team-name"></span></div>
+    <div class="user"><span id="dash-username"></span><a data-goto="login">로그아웃</a></div>
   </div>
-</section>
+  <div class="page">
+    <section>
+      <div class="dash-header">
+        <div>
+          <div class="dash-title">전체 진행률</div>
+          <div class="dash-sub" id="dash-invite">초대코드 -</div>
+        </div>
+        <div class="gauge gauge-lg" id="team-gauge" data-label="0%"></div>
+      </div>
 
+      <h2>멤버별 진행률</h2>
+      <div class="member-list" id="member-list"></div>
+
+      <h2>할 일 추가</h2>
+      <form id="form-add-task" class="task-form">
+        <input id="new-task-title" placeholder="제목" required>
+        <select id="new-task-assignee" required></select>
+        <input id="new-task-deadline" type="date" required>
+        <button>추가</button>
+      </form>
+
+      <h2>할 일 목록</h2>
+      <div id="task-list"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+/* ---------------------------------------------------------------------
+ * 목업용 인메모리 데이터. 실제로는 API 명세서(docs/team-deadline-dashboard-api-spec.md)의
+ * TeamOut / MemberProgress / TaskOut / StepOut 스키마를 그대로 흉내낸다.
+ * ------------------------------------------------------------------- */
+const NOW = new Date('2026-09-09T09:00:00'); // 데모용 기준 시각 (마감 임박/초과 판단 기준)
+
+let currentUser = { name: '김민수' };
+let currentTeamId = null;
+
+let teams = [
+  { id: 1, name: '캡스톤 프로젝트', invite_code: 'a1b2c3d4', role: 'leader' },
+  { id: 2, name: '알고리즘 스터디', invite_code: '9f8e7d6c', role: 'member' },
+];
+let nextTeamId = 3;
+
+// 아직 합류하지 않은 팀 (초대코드 입력 테스트용)
+let joinablePool = [
+  { id: 9, name: '해커톤 팀', invite_code: 'zz99yy88' },
+];
+
+let teamData = {
+  1: {
+    members: [
+      { user_id: 1, name: '김민수', role: 'leader' },
+      { user_id: 2, name: '이서연', role: 'member' },
+      { user_id: 3, name: '박지훈', role: 'member' },
+    ],
+    nextTaskId: 5,
+    nextStepId: 5,
+    tasks: [
+      { id: 1, title: '발표자료 준비', assignee_id: 2, deadline: '2026-09-09', done: false, editing: false,
+        steps: [
+          { id: 1, title: '자료조사', done: true },
+          { id: 2, title: '초안작성', done: true },
+          { id: 3, title: '디자인', done: false },
+          { id: 4, title: '발표연습', done: false },
+        ] },
+      { id: 2, title: '회의록 정리', assignee_id: 1, deadline: '2026-09-12', done: false, editing: false, steps: [] },
+      { id: 3, title: 'API 명세 작성', assignee_id: 3, deadline: '2026-09-07', done: false, editing: false, steps: [] },
+      { id: 4, title: '와이어프레임', assignee_id: 1, deadline: '2026-09-10', done: true, editing: false, steps: [] },
+    ],
+  },
+  2: { members: [{ user_id: 1, name: '김민수', role: 'member' }], nextTaskId: 1, nextStepId: 1, tasks: [] },
+};
+
+/* ---------------------------------------------------------------------
+ * 화면 전환
+ * ------------------------------------------------------------------- */
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  if (name === 'teams') { document.getElementById('teams-username').textContent = currentUser.name + '님'; renderTeams(); }
+  if (name === 'dashboard') { document.getElementById('dash-username').textContent = currentUser.name + '님'; }
+}
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-goto]');
+  if (el) showScreen(el.dataset.goto);
+});
+
+/* ---------------------------------------------------------------------
+ * 로그인 / 회원가입 — 실제로는 POST /auth/login, /auth/signup
+ * ------------------------------------------------------------------- */
+document.getElementById('form-login').addEventListener('submit', e => {
+  e.preventDefault();
+  const email = document.getElementById('login-email').value;
+  const password = document.getElementById('login-password').value;
+  if (!email || !password) { document.getElementById('login-err').textContent = '이메일과 비밀번호를 입력하세요.'; return; }
+  document.getElementById('login-err').textContent = '';
+  currentUser = { name: email.split('@')[0] };
+  showScreen('teams');
+});
+
+document.getElementById('form-signup').addEventListener('submit', e => {
+  e.preventDefault();
+  const name = document.getElementById('signup-name').value;
+  const email = document.getElementById('signup-email').value;
+  const password = document.getElementById('signup-password').value;
+  if (!name || !email || !password) { document.getElementById('signup-err').textContent = '모든 항목을 입력하세요.'; return; }
+  document.getElementById('signup-err').textContent = '';
+  currentUser = { name };
+  showScreen('teams');
+});
+
+/* ---------------------------------------------------------------------
+ * 팀 목록 — GET /teams, POST /teams, POST /teams/:id/join
+ * ------------------------------------------------------------------- */
+function renderTeams() {
+  const el = document.getElementById('team-rows');
+  el.innerHTML = teams.length ? teams.map(t => `
+    <div class="team-row">
+      <div><div class="team-name">${t.name}<span class="role-tag">${t.role}</span></div><div class="team-meta">초대코드 ${t.invite_code}</div></div>
+      <button class="btn-sm" data-open-team="${t.id}">열기 →</button>
+    </div>`).join('') : '<div class="empty">아직 속한 팀이 없습니다.</div>';
+}
+document.getElementById('team-rows').addEventListener('click', e => {
+  const btn = e.target.closest('[data-open-team]');
+  if (btn) openDashboard(Number(btn.dataset.openTeam));
+});
+
+document.getElementById('form-create-team').addEventListener('submit', e => {
+  e.preventDefault();
+  const nameInput = document.getElementById('new-team-name');
+  const name = nameInput.value.trim();
+  if (!name) return;
+  const team = { id: nextTeamId++, name, invite_code: Math.random().toString(16).slice(2, 10), role: 'leader' };
+  teams.push(team);
+  teamData[team.id] = { members: [{ user_id: 1, name: currentUser.name, role: 'leader' }], nextTaskId: 1, nextStepId: 1, tasks: [] };
+  nameInput.value = '';
+  renderTeams();
+});
+
+document.getElementById('form-join-team').addEventListener('submit', e => {
+  e.preventDefault();
+  const codeInput = document.getElementById('join-code');
+  const code = codeInput.value.trim();
+  const errEl = document.getElementById('join-err');
+  const idx = joinablePool.findIndex(t => t.invite_code === code);
+  if (idx === -1) { errEl.textContent = '유효하지 않은 초대코드입니다.'; return; } // 404 Invalid team or invite code
+  const [team] = joinablePool.splice(idx, 1);
+  teams.push({ ...team, role: 'member' });
+  teamData[team.id] = { members: [{ user_id: 1, name: currentUser.name, role: 'member' }], nextTaskId: 1, nextStepId: 1, tasks: [] };
+  errEl.textContent = '';
+  codeInput.value = '';
+  renderTeams();
+});
+
+/* ---------------------------------------------------------------------
+ * 대시보드 — GET /teams/:id/dashboard 및 task/step CRUD
+ * ------------------------------------------------------------------- */
+function unitsOf(task) {
+  if (task.steps.length) return [task.steps.filter(s => s.done).length, task.steps.length];
+  return [task.done ? 1 : 0, 1];
+}
+function pct(done, total) { return total ? Math.round((done / total) * 100) : 0; }
+function gaugeColor(p) { return p >= 70 ? '#16a34a' : p >= 40 ? '#4f46e5' : '#dc2626'; }
+function paintGauge(el, p) {
+  el.setAttribute('data-label', p + '%');
+  el.style.background = `conic-gradient(${gaugeColor(p)} calc(${p}*3.6deg), #e5e7eb 0)`;
+}
+function deadlineState(task) {
+  if (task.done) return 'done';
+  const diffDays = Math.floor((new Date(task.deadline) - NOW) / 86400000);
+  if (diffDays < 0) return 'overdue';
+  if (diffDays <= 1) return 'soon';
+  return 'normal';
+}
+function deadlineLabel(task) {
+  const d = new Date(task.deadline);
+  const mmdd = `${d.getMonth() + 1}/${d.getDate()}`;
+  const diffDays = Math.floor((d - NOW) / 86400000);
+  const suffix = diffDays < 0 ? ' (초과)' : diffDays === 0 ? ' (D-day)' : diffDays === 1 ? ' (D-1)' : '';
+  return `마감 ${mmdd}${suffix}`;
+}
+
+function openDashboard(teamId) {
+  currentTeamId = teamId;
+  const team = teams.find(t => t.id === teamId);
+  document.getElementById('dash-team-name').textContent = team.name;
+  document.getElementById('dash-invite').textContent = '초대코드 ' + team.invite_code;
+  renderDashboard();
+  showScreen('dashboard');
+}
+
+function renderDashboard() {
+  const data = teamData[currentTeamId];
+
+  // 팀 전체 게이지
+  let doneUnits = 0, totalUnits = 0;
+  data.tasks.forEach(t => { const [d, u] = unitsOf(t); doneUnits += d; totalUnits += u; });
+  paintGauge(document.getElementById('team-gauge'), pct(doneUnits, totalUnits));
+
+  // 멤버별 진행률 + overdue 카운트
+  document.getElementById('member-list').innerHTML = data.members.map(m => {
+    const myTasks = data.tasks.filter(t => t.assignee_id === m.user_id);
+    let d = 0, u = 0;
+    myTasks.forEach(t => { const [td, tu] = unitsOf(t); d += td; u += tu; });
+    const overdue = myTasks.filter(t => !t.done && new Date(t.deadline) < NOW).length;
+    const p = pct(d, u);
+    return `
+      <div class="member-card">
+        <div class="gauge" data-label="${p}%" style="background: conic-gradient(${gaugeColor(p)} calc(${p}*3.6deg), #e5e7eb 0);"></div>
+        <div class="member-info">
+          <div class="member-name">${m.name}<span class="member-role">${m.role}</span></div>
+          <span class="badge ${overdue ? 'badge-warn' : 'badge-ok'}">미완료 ${myTasks.filter(t => !t.done).length}개${overdue ? ` (마감초과 ${overdue}건)` : ''}</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  // 할 일 추가 폼의 담당자 select
+  const assigneeSelect = document.getElementById('new-task-assignee');
+  assigneeSelect.innerHTML = data.members.map(m => `<option value="${m.user_id}">${m.name}</option>`).join('');
+
+  // 할 일 목록
+  document.getElementById('task-list').innerHTML = data.tasks.length
+    ? data.tasks.map(taskCardHTML).join('')
+    : '<div class="empty">아직 할 일이 없습니다.</div>';
+
+  function taskCardHTML(task) {
+    const assignee = data.members.find(m => m.user_id === task.assignee_id);
+    const state = deadlineState(task);
+    const cardClass = state === 'overdue' ? 'overdue' : state === 'soon' ? 'soon' : '';
+    const metaClass = state === 'overdue' ? 'overdue-text' : state === 'soon' ? 'soon-text' : '';
+
+    if (task.editing) {
+      return `
+        <div class="task-card ${cardClass}">
+          <form class="edit-form" data-save-task="${task.id}">
+            <input name="title" value="${task.title}" required>
+            <select name="assignee_id">${data.members.map(m => `<option value="${m.user_id}" ${m.user_id === task.assignee_id ? 'selected' : ''}>${m.name}</option>`).join('')}</select>
+            <input name="deadline" type="date" value="${task.deadline}" required>
+            <button type="submit" class="btn-sm">저장</button>
+            <button type="button" class="btn-sm" data-cancel-edit="${task.id}">취소</button>
+          </form>
+        </div>`;
+    }
+
+    const [d, u] = unitsOf(task);
+    const doneToggle = task.steps.length
+      ? `<span class="step-count">${d}/${u} 완료</span>`
+      : `<input type="checkbox" class="task-done-checkbox" data-task-id="${task.id}" ${task.done ? 'checked' : ''}>`;
+
+    const stepsHTML = task.steps.map(s => `
+      <div class="step-row ${s.done ? 'done' : ''}">
+        <input type="checkbox" class="step-checkbox" data-task-id="${task.id}" data-step-id="${s.id}" ${s.done ? 'checked' : ''}>
+        <label>${s.title}</label>
+      </div>`).join('');
+
+    return `
+      <div class="task-card ${cardClass}">
+        <div class="task-head">
+          ${doneToggle}
+          <span class="task-title ${task.done ? 'done' : ''}">${task.title}</span>
+          <span class="task-meta ${metaClass}">담당: ${assignee ? assignee.name : '-'} · ${deadlineLabel(task)}</span>
+          <div class="task-actions">
+            <button class="icon-btn" data-edit-task="${task.id}">수정</button>
+            <button class="icon-btn" data-delete-task="${task.id}">삭제</button>
+          </div>
+        </div>
+        <div class="steps">
+          ${stepsHTML}
+          <div class="step-add">
+            <input placeholder="+ 단계 추가" data-step-input="${task.id}">
+            <button type="button" data-add-step="${task.id}">추가</button>
+          </div>
+        </div>
+      </div>`;
+  }
+}
+
+document.getElementById('form-add-task').addEventListener('submit', e => {
+  e.preventDefault();
+  const data = teamData[currentTeamId];
+  const title = document.getElementById('new-task-title').value.trim();
+  const assigneeId = Number(document.getElementById('new-task-assignee').value);
+  const deadline = document.getElementById('new-task-deadline').value;
+  if (!title || !deadline) return;
+  data.tasks.push({ id: data.nextTaskId++, title, assignee_id: assigneeId, deadline, done: false, editing: false, steps: [] });
+  e.target.reset();
+  renderDashboard();
+});
+
+document.getElementById('task-list').addEventListener('change', e => {
+  const data = teamData[currentTeamId];
+  if (e.target.matches('.task-done-checkbox')) {
+    const task = data.tasks.find(t => t.id === Number(e.target.dataset.taskId));
+    task.done = e.target.checked;
+    renderDashboard();
+  }
+  if (e.target.matches('.step-checkbox')) {
+    const task = data.tasks.find(t => t.id === Number(e.target.dataset.taskId));
+    const step = task.steps.find(s => s.id === Number(e.target.dataset.stepId));
+    step.done = e.target.checked;
+    task.done = task.steps.length > 0 && task.steps.every(s => s.done); // 전 단계 완료 시 자동 완료
+    renderDashboard();
+  }
+});
+
+document.getElementById('task-list').addEventListener('submit', e => {
+  const saveBtn = e.target.closest('[data-save-task]');
+  if (!saveBtn) return;
+  e.preventDefault();
+  const data = teamData[currentTeamId];
+  const task = data.tasks.find(t => t.id === Number(saveBtn.dataset.saveTask));
+  const form = new FormData(saveBtn);
+  task.title = form.get('title');
+  task.assignee_id = Number(form.get('assignee_id'));
+  task.deadline = form.get('deadline');
+  task.editing = false;
+  renderDashboard();
+});
+
+document.getElementById('task-list').addEventListener('click', e => {
+  const data = teamData[currentTeamId];
+
+  const editBtn = e.target.closest('[data-edit-task]');
+  if (editBtn) { data.tasks.find(t => t.id === Number(editBtn.dataset.editTask)).editing = true; renderDashboard(); return; }
+
+  const cancelBtn = e.target.closest('[data-cancel-edit]');
+  if (cancelBtn) { data.tasks.find(t => t.id === Number(cancelBtn.dataset.cancelEdit)).editing = false; renderDashboard(); return; }
+
+  const delBtn = e.target.closest('[data-delete-task]');
+  if (delBtn) { data.tasks = data.tasks.filter(t => t.id !== Number(delBtn.dataset.deleteTask)); renderDashboard(); return; }
+
+  const addStepBtn = e.target.closest('[data-add-step]');
+  if (addStepBtn) {
+    const taskId = Number(addStepBtn.dataset.addStep);
+    const input = document.querySelector(`[data-step-input="${taskId}"]`);
+    const title = input.value.trim();
+    if (!title) return;
+    const task = data.tasks.find(t => t.id === taskId);
+    task.steps.push({ id: data.nextStepId++, title, done: false });
+    task.done = false; // 새 단계가 생기면 아직 전부 완료된 상태가 아님
+    renderDashboard();
+  }
+});
+</script>
 </body>
 </html>
