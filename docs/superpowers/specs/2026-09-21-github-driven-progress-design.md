@@ -116,6 +116,15 @@ GitHub App이 아니라 **OAuth App**을 쓴다. 로그인과 레포 접근을 �
 
 **실패 처리:** 팀 단위로 예외를 격리해 한 팀의 레포 문제가 다른 팀 동기화를 막지 않는다. 결과를 `Team.github_last_sync_at` / `github_last_error`에 기록하고 대시보드 응답에 실어 보낸다 — 조용히 멈춘 동기화가 제일 나쁘다. 403/429(레이트 리밋)를 받으면 해당 팀을 다음 주기 하나 건너뛴다.
 
+**`Team` 신규 컬럼**
+
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| `github_connected_by` | FK → users.id, nullable | 레포를 연결한 사람. 동기화 토큰 1순위 |
+| `github_etag` | String, nullable | 조건부 요청용 |
+| `github_last_sync_at` | DateTime, nullable | |
+| `github_last_error` | String, nullable | 성공 시 None으로 지운다 |
+
 **확장 지점:** 동기화 본체는 `sync_repo(db, team) -> SyncResult` 하나로 두고, 스케줄러는 이 함수를 팀마다 부르기만 한다. 나중에 실시간이 필요해지면 `POST /webhooks/github`가 같은 함수를 부르면 된다.
 
 ### 5.4 진행률 재정의
@@ -137,11 +146,11 @@ GitHub App이 아니라 **OAuth App**을 쓴다. 로그인과 레포 접근을 �
 
 ### 5.5 멤버 ↔ 깃허브 계정 매칭
 
-커밋·PR의 `author.login`을 `User.github_login`과 대조해 멤버별 최근 활동(커밋 수, 열린 PR 수)을 대시보드 멤버 카드에 붙인다. 매칭되는 계정이 없으면 "깃허브 미연결"로 표시하고, 그 사람에게 연결을 유도한다.
+커밋·PR의 `author.login`을 `User.github_login`과 대조해 멤버별 최근 활동(커밋 수, 열린 PR 수)을 대시보드 멤버 카드에 붙인다. 이 활동 수치는 **저장하지 않고** 기존 `GET /teams/{team_id}/github` 응답에서 그때그때 계산한다 — 진행률과 달리 정확한 이력이 필요 없고, 테이블을 하나 더 늘릴 이유도 없다. 매칭되는 계정이 없으면 "깃허브 미연결"로 표시하고, 그 사람에게 연결을 유도한다.
 
 ### 5.6 운영 기반
 
-**설정 (`app/config.py` 신규).** 환경변수를 한 곳에서 읽고 필수값을 기동 시점에 검증한다. `JWT_SECRET`, `TOKEN_ENCRYPTION_KEY`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `DATABASE_URL`, `ALLOWED_ORIGINS`가 없으면 **프로세스를 띄우지 않는다.** 지금의 `dev-secret-change-me` 기본값은 제거한다 — 기본값이 있으면 언젠가 그대로 배포된다.
+**설정 (`app/config.py` 신규).** 환경변수를 한 곳에서 읽고 필수값을 기동 시점에 검증한다. `JWT_SECRET`, `TOKEN_ENCRYPTION_KEY`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `DATABASE_URL`, `ALLOWED_ORIGINS`, `FRONTEND_URL`(OAuth 콜백 후 돌아갈 주소)이 없으면 **프로세스를 띄우지 않는다.** 지금의 `dev-secret-change-me` 기본값은 제거한다 — 기본값이 있으면 언젠가 그대로 배포된다.
 
 **토큰 암호화.** 깃허브 access token은 `cryptography`의 Fernet으로 암호화해 저장한다. DB가 유출돼도 토큰 자체는 쓸 수 없어야 한다. 키는 `TOKEN_ENCRYPTION_KEY`. (신규 의존성 1개 — 직접 구현할 종류의 코드가 아니다.)
 
