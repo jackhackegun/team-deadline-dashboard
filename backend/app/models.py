@@ -26,6 +26,7 @@ class Team(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     invite_code = Column(String, unique=True, nullable=False)
+    github_repo = Column(String, nullable=True)  # "owner/name" 형식, 미연결 시 None
 
 
 class TeamMember(Base):
