@@ -13,7 +13,7 @@
   ```
 - 날짜/시간: ISO 8601 (`2026-09-10T00:00:00`), UTC 기준.
 - 진행률(`progress_pct`)은 반올림한 정수(0~100).
-- **구현 상태**: 인증(`/auth/*`)만 구현 완료. 팀/할 일/대시보드는 본 명세대로 설계됨(미구현).
+- **구현 상태**: 전체 구현 완료. 단, 팀 합류는 `POST /teams/{team_id}/join`이 아니라 `POST /teams/join`이다 — 초대코드만 아는 클라이언트가 team_id를 미리 알 수 없어 코드만으로 조회하도록 바꿨다 (2장 참고).
 
 ---
 
@@ -68,7 +68,9 @@ Request body:
 
 Response `200`: `TeamOut` (위와 동일 형태, `role: "leader"`). `invite_code`는 서버가 생성.
 
-### POST `/teams/{team_id}/join` — 초대코드로 팀 합류
+### POST `/teams/join` — 초대코드로 팀 합류
+
+> 구현은 명세 초안(`/teams/{team_id}/join`)과 다르게 team_id를 경로에 받지 않는다 — 위 "구현 상태" 참고.
 
 Request body:
 ```json
