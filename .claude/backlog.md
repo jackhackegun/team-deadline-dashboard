@@ -6,3 +6,7 @@
 - [x] 4. 팀 나가기 / 팀 삭제 — 합류·생성만 있고 되돌릴 방법이 없다. 잘못 만든 팀이나 잘못 합류한 팀을 정리할 수 없음 · backend/app/routers/teams.py, frontend/src/Teams.jsx · 보통
 - [x] 5. 회원가입 서버 검증 강화 — 이메일 형식만 검사하고 비밀번호 최소 길이 등은 검사하지 않는다 · backend/app/schemas.py · 작음
 - [x] 6. task/step 엔드포인트 비회원 차단 테스트 — 현재 팀 대시보드 403은 테스트했지만, task 생성·수정·삭제·step 엔드포인트에 대한 비회원 접근 테스트가 없다 · backend/tests/test_teams.py · 작음
+- [x] 7. 깃허브 이슈/PR 연동으로 진행상태 자동 판정 — 할 일에 이슈/PR을 연결하면 닫힘·머지 상태가 진행률이 된다 · backend/app/github_api.py, routers/tasks.py, frontend/src/TaskCard.jsx · 큼
+- [ ] 8. 깃허브 OAuth 로그인 — 지금은 이메일/비밀번호뿐이라 커밋 author와 팀 멤버를 이어줄 수 없고, 비공개 레포는 서버 전역 `GITHUB_TOKEN` 하나에 의존한다. 깃허브에서 OAuth 앱 등록(Client ID/Secret) 필요 · 설계문서 §5.1 · 큼
+- [ ] 9. Postgres + Alembic 전환 — 지금은 SQLite 파일이고 `main.py`가 PRAGMA로 컬럼을 덧붙이는 임시 마이그레이션을 쓴다 · backend/app/main.py, database.py · 보통
+- [ ] 10. 배포 준비 — `JWT_SECRET` 기본값 제거(미설정 시 기동 실패), CORS 화이트리스트, 전역 에러 핸들러, `/healthz`, docker-compose · 설계문서 §5.6 · 보통
