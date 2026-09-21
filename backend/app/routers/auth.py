@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import User
@@ -9,11 +10,17 @@ from ..security import hash_password, verify_password, create_access_token
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def _find_by_email(db: Session, email: str) -> User | None:
+    """이메일은 대소문자를 가리지 않는다. Kim@Test.com으로 가입하고 kim@test.com으로 로그인해도 같은 사람이다."""
+    return db.query(User).filter(func.lower(User.email) == email.strip().lower()).first()
+
+
 @router.post("/signup", response_model=TokenResponse)
 def signup(payload: UserCreate, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.email == payload.email).first():
-        raise HTTPException(status_code=400, detail="Email already registered")
-    user = User(email=payload.email, password_hash=hash_password(payload.password), name=payload.name)
+    email = payload.email.strip().lower()
+    if _find_by_email(db, email):
+        raise HTTPException(status_code=400, detail="이미 가입된 이메일입니다. 로그인해 주세요.")
+    user = User(email=email, password_hash=hash_password(payload.password), name=payload.name)
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -22,9 +29,9 @@ def signup(payload: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 def login(payload: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
+    user = _find_by_email(db, payload.email)
     if not user or not verify_password(payload.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(status_code=401, detail="이메일 또는 비밀번호가 올바르지 않습니다.")
     return TokenResponse(access_token=create_access_token(user.id))
 
 

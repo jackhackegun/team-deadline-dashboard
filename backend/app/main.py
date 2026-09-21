@@ -3,8 +3,10 @@ from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from .database import Base, engine
 from .github_api import run_sync_job
 from .notifications import run_notify_job
@@ -60,3 +62,38 @@ app.include_router(auth.router)
 app.include_router(teams.router)
 app.include_router(tasks.router)
 app.include_router(github.router)
+
+
+
+# 입력 검증 실패(422)의 detail은 기본적으로 배열이라 프론트가 그대로 띄우면 "[object Object]"가 된다.
+# 한 문장으로 바꿔 어느 화면에서든 사용자가 읽을 수 있게 한다.
+_FIELD_NAMES = {"email": "이메일", "password": "비밀번호", "name": "이름",
+                "title": "제목", "deadline": "마감일", "org": "오가니제이션", "repo": "레포"}
+
+
+def _josa(word: str, with_batchim: str, without: str) -> str:
+    """받침 유무에 따라 조사를 고른다. '비밀번호은(는)' 같은 문구를 피하려고."""
+    last = word[-1]
+    has_batchim = "가" <= last <= "힣" and (ord(last) - 0xAC00) % 28 != 0
+    return word + (with_batchim if has_batchim else without)
+
+
+def _describe(error: dict) -> str:
+    field = _FIELD_NAMES.get(str(error["loc"][-1]), str(error["loc"][-1]))
+    kind = error["type"]
+    if kind == "missing":
+        return f"{_josa(field, '을', '를')} 입력하세요."
+    if kind == "string_too_short":
+        least = error.get("ctx", {}).get("min_length")
+        subject = _josa(field, "은", "는")
+        return f"{subject} {least}자 이상이어야 합니다." if least else f"{_josa(field, '이', '가')} 너무 짧습니다."
+    if kind.startswith("value_error") and field == "이메일":
+        return "이메일 형식이 올바르지 않습니다."
+    return f"{field}: {error.get('msg', '입력값을 확인하세요.')}"
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    detail = _describe(errors[0]) if errors else "입력값을 확인하세요."
+    return JSONResponse(status_code=422, content={"detail": detail})

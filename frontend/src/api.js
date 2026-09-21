@@ -6,6 +6,16 @@ export function onUnauthorized(handler) {
   unauthorizedHandler = handler
 }
 
+// 서버 detail은 보통 문자열이지만 검증 오류는 배열로 올 수 있다.
+// 그대로 Error에 넣으면 화면에 "[object Object]"가 찍혀 사용자가 원인을 알 수 없다.
+export function readDetail(data, status) {
+  const d = data?.detail
+  if (typeof d === 'string' && d) return d
+  if (Array.isArray(d) && d.length) return d.map((e) => e?.msg || String(e)).join(' ')
+  if (d && typeof d === 'object' && d.msg) return d.msg
+  return `요청 실패 (${status})`
+}
+
 async function request(path, { method = 'GET', token, body } = {}) {
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
@@ -18,7 +28,7 @@ async function request(path, { method = 'GET', token, body } = {}) {
   const data = await res.json().catch(() => ({}))
   // 로그인 자체의 401(비밀번호 틀림)은 세션이 없으므로 제외 — 토큰을 들고 보낸 요청이 거부된 경우만 로그아웃
   if (res.status === 401 && token && unauthorizedHandler) unauthorizedHandler()
-  if (!res.ok) throw new Error(data.detail || `요청 실패 (${res.status})`)
+  if (!res.ok) throw new Error(readDetail(data, res.status))
   return data
 }
 
