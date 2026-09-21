@@ -11,21 +11,13 @@ export default function App() {
   const [username, setUsername] = useState('')
   const [currentTeamId, setCurrentTeamId] = useState(null)
 
-  async function handleAuthed(accessToken, name) {
+  // 로그인하면 항상 팀 목록부터 보여준다. 팀이 하나여도 건너뛰지 않는다 —
+  // 어느 팀에 들어가는지 스스로 고르는 편이 예측 가능하다
+  function handleAuthed(accessToken, name) {
     localStorage.setItem('token', accessToken)
     setToken(accessToken)
     setUsername(name)
     setScreen('teams')
-    // 팀이 하나뿐이면 목록을 한 번 더 거칠 이유가 없다 — 바로 들어간다
-    try {
-      const teams = await api.listTeams(accessToken)
-      if (teams.length === 1) {
-        setCurrentTeamId(teams[0].id)
-        setScreen('dashboard')
-      }
-    } catch {
-      // 목록을 못 받아도 팀 화면은 그대로 뜬다
-    }
   }
 
   function handleLogout() {
