@@ -29,6 +29,17 @@ docker compose up -d --build
 
 시크릿이 비어 있으면 컨테이너가 **뜨지 않는다.** 개발용 기본값이 운영에 올라가는 사고를 막기 위한 것이다.
 
+### 개발용 SQLite 데이터를 배포본으로 옮기기
+
+`dashboard.db`에 있던 계정·팀·할 일을 컨테이너의 Postgres로 옮긴다.
+기존 행을 지우지 않고 덧붙이며, 이미 있는 이메일은 건너뛴다.
+
+```bash
+docker compose cp backend/dashboard.db api:/tmp/dashboard.db
+docker compose cp backend/scripts/migrate_sqlite_to_postgres.py api:/tmp/migrate.py
+docker compose exec api python /tmp/migrate.py
+```
+
 ```bash
 docker compose logs -f api     # 로그
 docker compose ps              # 상태 (api는 /healthz로 헬스체크)
