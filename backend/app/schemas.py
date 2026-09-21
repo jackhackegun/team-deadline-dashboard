@@ -68,6 +68,21 @@ class TaskUpdate(BaseModel):
     done: Optional[bool] = None
 
 
+class LinkCreate(BaseModel):
+    ref: str  # "123", "#123", 또는 이슈/PR URL
+
+
+class LinkOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    kind: str
+    number: int
+    title: Optional[str] = None
+    state: str
+    url: Optional[str] = None
+
+
 class TaskOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -78,7 +93,10 @@ class TaskOut(BaseModel):
     deadline: datetime
     done: bool
     created_by: int
+    auto_completed_at: Optional[datetime] = None
+    done_override: bool = False
     steps: list[StepOut] = []
+    links: list[LinkOut] = []
 
 
 class MemberProgress(BaseModel):
@@ -95,3 +113,6 @@ class DashboardOut(BaseModel):
     progress_pct: int
     members: list[MemberProgress]
     tasks: list[TaskOut]
+    github_repo: Optional[str] = None
+    github_last_sync_at: Optional[datetime] = None
+    github_last_error: Optional[str] = None

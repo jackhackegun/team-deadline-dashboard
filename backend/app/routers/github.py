@@ -1,8 +1,4 @@
-import json
-import os
-import re
-import urllib.error
-import urllib.request
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -10,32 +6,20 @@ from sqlalchemy.orm import Session
 from ..access import require_member
 from ..database import get_db
 from ..deps import get_current_user
+from ..github_api import REPO_RE, GithubError, gh_get, sync_repo
 from ..models import Team, User
 from ..schemas import GithubConnect
 
 router = APIRouter(tags=["github"])
 
-REPO_RE = re.compile(r"^[\w.-]+/[\w.-]+$")
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")  # 비공개 레포·rate limit 완화용(선택)
-
 
 def _gh_get(path: str):
-    """GitHub REST API GET. stdlib urllib만 사용(동기 def 엔드포인트라 스레드풀에서 실행됨)."""
-    headers = {"User-Agent": "deadline-dashboard", "Accept": "application/vnd.github+json"}
-    if GITHUB_TOKEN:
-        headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
-    req = urllib.request.Request(f"https://api.github.com{path}", headers=headers)
+    """GithubError를 HTTP 응답으로 바꿔주는 얇은 래퍼."""
     try:
-        with urllib.request.urlopen(req, timeout=8) as res:
-            return json.load(res)
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            raise HTTPException(status_code=404, detail="레포를 찾을 수 없습니다. owner/name 형식과 공개 여부를 확인하세요.")
-        if e.code in (401, 403):
-            raise HTTPException(status_code=502, detail="GitHub 접근이 거부되었습니다(비공개 레포거나 요청 한도 초과). GITHUB_TOKEN 설정이 필요할 수 있어요.")
-        raise HTTPException(status_code=502, detail=f"GitHub 오류 ({e.code})")
-    except urllib.error.URLError:
-        raise HTTPException(status_code=502, detail="GitHub에 연결할 수 없습니다(네트워크 확인).")
+        data, _etag = gh_get(path)
+        return data
+    except GithubError as e:
+        raise HTTPException(status_code=e.status if e.status == 404 else 502, detail=e.message)
 
 
 def _team(db: Session, team_id: int, user_id: int) -> Team:
@@ -59,6 +43,7 @@ def connect_repo(team_id: int, payload: GithubConnect, user: User = Depends(get_
 def disconnect_repo(team_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     team = _team(db, team_id, user.id)
     team.github_repo = None
+    team.github_etag = team.github_last_error = team.github_last_sync_at = None
     db.commit()
     return {}
 
@@ -95,3 +80,20 @@ def get_activity(team_id: int, user: User = Depends(get_current_user), db: Sessi
             for p in pulls
         ],
     }
+
+
+@router.post("/teams/{team_id}/github/sync")
+def sync_now(team_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """5분 주기를 기다리지 않고 지금 동기화한다."""
+    team = _team(db, team_id, user.id)
+    if not team.github_repo:
+        raise HTTPException(status_code=400, detail="연결된 레포가 없습니다.")
+    try:
+        result = sync_repo(db, team)
+    except GithubError as e:
+        team.github_last_sync_at = datetime.utcnow()
+        team.github_last_error = e.message
+        db.commit()
+        raise HTTPException(status_code=e.status if e.status == 404 else 502, detail=e.message)
+    db.commit()
+    return result
