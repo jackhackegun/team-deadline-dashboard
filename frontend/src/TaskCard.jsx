@@ -2,14 +2,14 @@ import { useState } from 'react'
 import { unitsOf, deadlineState, deadlineLabel, taskState, agoLabel } from './dashboardMath'
 
 export default function TaskCard({
-  task, assignee, members, isEditing, isLeader, isMine, hasRepo,
+  task, assignee, members, isEditing, isLeader, isMine, hasRepo, myGithubLogin,
   onEdit, onCancelEdit, onSave, onDelete, onToggleStep, onAddStep,
-  onRequestReview, onApprove, onReject, onLinkCommit, onUnlinkCommit,
+  onRequestReview, onApprove, onReject, onLinkCommit, onUnlinkCommit, loadCommits,
 }) {
   // 입력칸은 기본으로 접어둔다 — 카드마다 빈 칸이 널려 있으면 목록을 읽을 수가 없다
   const [panel, setPanel] = useState(null) // 'step' | 'commit' | null
   const [stepTitle, setStepTitle] = useState('')
-  const [sha, setSha] = useState('')
+  const [picker, setPicker] = useState(null) // 최근 커밋 목록 (null = 불러오는 중)
   const [error, setError] = useState('')
 
   const dState = deadlineState(task)
@@ -58,7 +58,13 @@ export default function TaskCard({
 
   function togglePanel(name) {
     setError('')
-    setPanel(panel === name ? null : name)
+    const next = panel === name ? null : name
+    setPanel(next)
+    // 커밋은 해시를 외워서 칠 수 있는 게 아니다 — 열면 최근 목록을 가져와 고르게 한다
+    if (next === 'commit') {
+      setPicker(null)
+      loadCommits().then(setPicker).catch((err) => { setError(err.message); setPanel(null) })
+    }
   }
 
   return (
@@ -155,21 +161,36 @@ export default function TaskCard({
       )}
 
       {panel === 'commit' && (
-        <div className="tool-panel">
-          <input
-            autoFocus placeholder="커밋 해시 (예: a1b2c3d)" value={sha}
-            onChange={(e) => setSha(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.nextSibling.click() } }}
-          />
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => {
-              const value = sha.trim()
-              if (!value) return
-              run(async () => { await onLinkCommit(value); setSha('') })
-            }}
-          >붙이기</button>
-          <span className="tool-hint">커밋 메시지에 <code>[#{task.id}]</code>을 적으면 자동으로 붙습니다</span>
+        <div className="commit-picker">
+          {picker === null && <div className="picker-empty">최근 커밋을 불러오는 중…</div>}
+          {picker && picker.length === 0 && (
+            <div className="picker-empty">최근 커밋이 없습니다. 레포가 연결돼 있는지 확인하세요.</div>
+          )}
+          {picker && picker.length > 0 && (
+            <>
+              <div className="picker-hint">
+                붙일 커밋을 고르세요. 다음부터는 커밋 메시지에 <code>[#{task.id}]</code>만 적으면 자동으로 붙습니다.
+              </div>
+              <div className="picker-list">
+                {picker.map((c) => {
+                  const already = commits.some((x) => x.sha === c.sha)
+                  const mine = myGithubLogin && c.author_login === myGithubLogin
+                  return (
+                    <button
+                      type="button" key={c.sha} disabled={already}
+                      className={`picker-row ${already ? 'used' : ''} ${mine ? 'mine' : ''}`}
+                      onClick={() => run(async () => { await onLinkCommit(c.sha); setPanel(null) })}
+                    >
+                      <code className="sha">{c.sha.slice(0, 7)}</code>
+                      <span className="pmsg">{c.message}</span>
+                      <span className="pmeta">{c.author_login || c.author_name} · {agoLabel(c.committed_at)}</span>
+                      <span className="pmark">{already ? '붙음' : mine ? '내 커밋' : ''}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          )}
         </div>
       )}
 

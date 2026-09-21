@@ -164,6 +164,8 @@ export default function Dashboard({ token, teamId, username, onBack, onLogout })
                         hasRepo={Boolean(dashboard.repos?.length)}
                         isLeader={isLeader}
                         isMine={task.assignee_id === me?.id}
+                        myGithubLogin={me?.github_login}
+                        loadCommits={() => api.listCommits(token, teamId).then((r) => r.commits)}
                         onEdit={() => setEditingTaskId(task.id)}
                         onCancelEdit={() => setEditingTaskId(null)}
                         onSave={async (id, patch) => { await api.updateTask(token, id, patch); setEditingTaskId(null); refresh() }}

@@ -49,6 +49,12 @@ class TeamOut(BaseModel):
     name: str
     invite_code: str
     role: str
+    # 팀을 열어보기 전에도 어느 팀이 급한지 알 수 있도록 목록에 요약을 싣는다
+    member_count: int = 1
+    task_count: int = 0
+    progress_pct: int = 0
+    overdue_count: int = 0
+    pending_review_count: int = 0
 
 
 class RepoStatus(BaseModel):

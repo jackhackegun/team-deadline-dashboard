@@ -85,3 +85,31 @@ def test_leave_and_delete_team(client):
     # 리더는 팀을 통째로 삭제할 수 있다
     assert client.delete(f"/teams/{team['id']}", headers=leader).status_code == 200
     assert client.get(f"/teams/{team['id']}/dashboard", headers=leader).status_code == 404
+
+
+def test_team_list_carries_summary(client):
+    """팀을 열어보기 전에도 진행률·마감 초과·승인 대기를 알 수 있어야 한다."""
+    leader = _signup(client, "sum-leader@test.com", "리더")
+    member = _signup(client, "sum-member@test.com", "멤버")
+    team = client.post("/teams", json={"name": "요약"}, headers=leader).json()
+    client.post("/teams/join", json={"invite_code": team["invite_code"]}, headers=member)
+
+    done = client.post(f"/teams/{team['id']}/tasks",
+                       json={"title": "끝난 일", "assignee_id": 2, "deadline": "2099-01-01T00:00:00"},
+                       headers=leader).json()
+    client.post(f"/teams/{team['id']}/tasks",
+                json={"title": "지난 일", "assignee_id": 2, "deadline": "2020-01-01T00:00:00"},
+                headers=leader)
+    waiting = client.post(f"/teams/{team['id']}/tasks",
+                          json={"title": "검토 대기", "assignee_id": 2, "deadline": "2099-01-01T00:00:00"},
+                          headers=leader).json()
+    client.post(f"/tasks/{done['id']}/request-review", headers=member)
+    client.post(f"/tasks/{done['id']}/approve", headers=leader)
+    client.post(f"/tasks/{waiting['id']}/request-review", headers=member)
+
+    summary = next(t for t in client.get("/teams", headers=leader).json() if t["id"] == team["id"])
+    assert summary["member_count"] == 2
+    assert summary["task_count"] == 3
+    assert summary["progress_pct"] == 33  # 3개 중 1개 승인
+    assert summary["overdue_count"] == 1
+    assert summary["pending_review_count"] == 1

@@ -11,11 +11,21 @@ export default function App() {
   const [username, setUsername] = useState('')
   const [currentTeamId, setCurrentTeamId] = useState(null)
 
-  function handleAuthed(accessToken, name) {
+  async function handleAuthed(accessToken, name) {
     localStorage.setItem('token', accessToken)
     setToken(accessToken)
     setUsername(name)
     setScreen('teams')
+    // 팀이 하나뿐이면 목록을 한 번 더 거칠 이유가 없다 — 바로 들어간다
+    try {
+      const teams = await api.listTeams(accessToken)
+      if (teams.length === 1) {
+        setCurrentTeamId(teams[0].id)
+        setScreen('dashboard')
+      }
+    } catch {
+      // 목록을 못 받아도 팀 화면은 그대로 뜬다
+    }
   }
 
   function handleLogout() {

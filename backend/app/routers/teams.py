@@ -14,8 +14,27 @@ from .tasks import task_units
 router = APIRouter(tags=["teams"])
 
 
-def _team_out(team: Team, role: Role) -> TeamOut:
-    return TeamOut(id=team.id, name=team.name, invite_code=team.invite_code, role=role.value)
+def _team_out(team: Team, role: Role, db: Session | None = None) -> TeamOut:
+    out = TeamOut(id=team.id, name=team.name, invite_code=team.invite_code, role=role.value)
+    if db is None:  # 갓 만든 팀 — 집계할 것이 없다
+        return out
+
+    out.member_count = db.query(TeamMember).filter(TeamMember.team_id == team.id).count()
+    tasks = db.query(Task).filter(Task.team_id == team.id).all()
+    out.task_count = len(tasks)
+
+    now = datetime.utcnow()
+    done = total = 0
+    for task in tasks:
+        d, u = task_units(task)
+        done += d
+        total += u
+        if not task.done and task.deadline < now:
+            out.overdue_count += 1
+        if task.review_requested_at and not task.done:
+            out.pending_review_count += 1
+    out.progress_pct = _pct(done, total)
+    return out
 
 
 def _pct(done: int, total: int) -> int:
@@ -30,7 +49,7 @@ def list_teams(user: User = Depends(get_current_user), db: Session = Depends(get
         .filter(TeamMember.user_id == user.id)
         .all()
     )
-    return [_team_out(team, role) for team, role in rows]
+    return [_team_out(team, role, db) for team, role in rows]
 
 
 @router.post("/teams", response_model=TeamOut)
