@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from .models import Team, TeamMember
+from .models import Role, Team, TeamMember
 
 
 def require_member(db: Session, team_id: int, user_id: int) -> TeamMember:
@@ -15,4 +15,12 @@ def require_member(db: Session, team_id: int, user_id: int) -> TeamMember:
     )
     if not member:
         raise HTTPException(status_code=403, detail="Not a team member")
+    return member
+
+
+def require_leader(db: Session, team_id: int, user_id: int) -> TeamMember:
+    """팀장만 할 수 있는 일(오가니제이션 등록, 완료 승인) 앞에 세운다."""
+    member = require_member(db, team_id, user_id)
+    if member.role != Role.leader:
+        raise HTTPException(status_code=403, detail="팀장만 할 수 있습니다.")
     return member

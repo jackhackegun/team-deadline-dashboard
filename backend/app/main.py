@@ -15,12 +15,12 @@ Base.metadata.create_all(bind=engine)
 # 기존 SQLite DB에 신규 컬럼 반영 (create_all은 기존 테이블을 변경하지 않음)
 # ponytail: SQLite 전용 미니 마이그레이션. Postgres 전환 시 alembic으로 교체
 _NEW_COLUMNS = [
-    ("teams", "github_repo", "VARCHAR"),
-    ("teams", "github_etag", "VARCHAR"),
-    ("teams", "github_last_sync_at", "DATETIME"),
-    ("teams", "github_last_error", "VARCHAR"),
-    ("tasks", "auto_completed_at", "DATETIME"),
-    ("tasks", "done_override", "BOOLEAN NOT NULL DEFAULT 0"),
+    ("teams", "github_org", "VARCHAR"),
+    ("users", "github_login", "VARCHAR"),
+    ("tasks", "review_requested_at", "DATETIME"),
+    ("tasks", "review_requested_by", "INTEGER"),
+    ("tasks", "approved_at", "DATETIME"),
+    ("tasks", "approved_by", "INTEGER"),
 ]
 if engine.dialect.name == "sqlite":
     with engine.begin() as _conn:

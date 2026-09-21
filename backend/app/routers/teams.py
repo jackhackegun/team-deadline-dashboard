@@ -110,15 +110,19 @@ def get_dashboard(team_id: int, user: User = Depends(get_current_user), db: Sess
             MemberProgress(
                 user_id=tm.user_id, name=member.name, role=tm.role.value,
                 progress_pct=_pct(m_done, m_total), overdue_count=overdue,
+                github_login=member.github_login,
             )
         )
         team_done += m_done
         team_total += m_total
 
+    my_member = next((m for m in members_out if m.user_id == user.id), None)
     return DashboardOut(
         team_id=team.id, team_name=team.name, progress_pct=_pct(team_done, team_total),
         members=members_out, tasks=tasks,
-        github_repo=team.github_repo,
-        github_last_sync_at=team.github_last_sync_at,
-        github_last_error=team.github_last_error,
+        github_org=team.github_org,
+        repos=team.repos,
+        my_role=my_member.role if my_member else "member",
+        # 팀장 화면에 '승인 기다리는 일 N건'을 띄우기 위한 값
+        pending_review_count=sum(1 for t in tasks if t.review_requested_at and not t.done),
     )

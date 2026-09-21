@@ -30,19 +30,20 @@ def test_team_join_and_dashboard_flow(client):
     assert dash["progress_pct"] == 0
     assert {m["user_id"]: m["progress_pct"] for m in dash["members"]} == {1: 0, 2: 0}
 
-    # 단계 없는 task는 done을 직접 토글 가능
-    client.patch(f"/tasks/{task['id']}", json={"done": True}, headers=leader)
-    dash = client.get(f"/teams/{team['id']}/dashboard", headers=leader).json()
-    assert dash["progress_pct"] == 100
+    # 진행도는 팀장 승인으로만 100%가 된다 (자세한 흐름은 test_commit_flow.py)
+    client.post(f"/tasks/{task['id']}/request-review", headers=member)
+    assert client.get(f"/teams/{team['id']}/dashboard", headers=leader).json()["progress_pct"] == 0
+    client.post(f"/tasks/{task['id']}/approve", headers=leader)
+    assert client.get(f"/teams/{team['id']}/dashboard", headers=leader).json()["progress_pct"] == 100
 
-    # 로드맵 단계가 생기면 done 직접 토글은 400, 단계 토글로만 완료
+    # 로드맵 단계는 승인 전까지 부분 진행률만 준다
+    client.post(f"/tasks/{task['id']}/reject", headers=leader)
     stepped = client.post(f"/tasks/{task['id']}/steps", json={"title": "자료조사"}, headers=leader).json()
     assert stepped["done"] is False
     step_id = stepped["steps"][0]["id"]
-    assert client.patch(f"/tasks/{task['id']}", json={"done": True}, headers=leader).status_code == 400
 
-    done_task = client.patch(f"/tasks/{task['id']}/steps/{step_id}", json={"done": True}, headers=leader).json()
-    assert done_task["done"] is True
+    still_pending = client.patch(f"/tasks/{task['id']}/steps/{step_id}", json={"done": True}, headers=leader).json()
+    assert still_pending["done"] is False and still_pending["review_requested_at"] is not None
 
     assert client.delete(f"/tasks/{task['id']}", headers=leader).status_code == 200
 
@@ -60,7 +61,9 @@ def test_team_join_and_dashboard_flow(client):
         json={"title": "몰래", "assignee_id": 1, "deadline": "2026-09-05T00:00:00"},
         headers=outsider,
     ).status_code == 403
-    assert client.patch(f"/tasks/{other_task['id']}", json={"done": True}, headers=outsider).status_code == 403
+    assert client.patch(f"/tasks/{other_task['id']}", json={"title": "몰래"}, headers=outsider).status_code == 403
+    assert client.post(f"/tasks/{other_task['id']}/request-review", headers=outsider).status_code == 403
+    assert client.post(f"/tasks/{other_task['id']}/approve", headers=outsider).status_code == 403
     assert client.post(f"/tasks/{other_task['id']}/steps", json={"title": "몰래"}, headers=outsider).status_code == 403
     step = client.post(f"/tasks/{other_task['id']}/steps", json={"title": "자료조사"}, headers=leader).json()["steps"][0]
     assert client.patch(f"/tasks/{other_task['id']}/steps/{step['id']}", json={"done": True}, headers=outsider).status_code == 403

@@ -354,20 +354,33 @@ input, select { font-family: inherit; color: var(--text); }
 .pr-state.closed { background: rgba(255,255,255,.06); color: var(--muted); }
 
 
-/* 깃허브 연결 — 이슈/PR 칩과 동기화 상태 */
+/* 깃허브 연동 — org·레포 선택, 커밋 목록, 승인 흐름 */
 .sync-bar { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
 .sync-text { font-size: 13px; opacity: .75; }
 .auto-badge { margin-left: 8px; }
-.links { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
-.link-chip { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 10px;
-  border: 1px solid rgba(148, 163, 184, .25); border-radius: 8px; }
-.link-chip a { color: inherit; text-decoration: none; flex: 1; overflow: hidden;
+.commits { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.commit-row { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 10px;
+  border: 1px solid rgba(148, 163, 184, .2); border-radius: 8px; }
+.commit-row a { color: inherit; text-decoration: none; flex: 1; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; }
-.link-chip a:hover { text-decoration: underline; }
-.link-chip.merged, .link-chip.closed { opacity: .6; }
-.link-chip.merged a strong { color: #a78bfa; }
-.link-state { font-size: 11px; padding: 2px 8px; border-radius: 999px;
-  background: rgba(245, 158, 11, .15); color: #f59e0b; white-space: nowrap; }
-.link-state.closed { background: rgba(16, 185, 129, .15); color: #10b981; }
+.commit-row a:hover { text-decoration: underline; }
+.sha { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+  padding: 2px 6px; border-radius: 5px; background: rgba(34, 211, 238, .12); color: #22d3ee; }
+.commit-meta { font-size: 11px; opacity: .6; white-space: nowrap; }
+.commit-manual { font-size: 10px; }
+.commit-hint { font-size: 12px; opacity: .55; margin-top: 8px; }
+.commit-hint code { background: rgba(148, 163, 184, .15); padding: 1px 5px; border-radius: 4px; }
+.task-ref { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; opacity: .5; }
+.btn-icon.approve { color: #10b981; font-weight: 600; }
+.repo-list { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
+.repo-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px;
+  cursor: pointer; font-size: 14px; }
+.repo-row:hover { background: rgba(148, 163, 184, .07); }
+.repo-row.on { background: rgba(16, 185, 129, .08); }
+.repo-name { font-weight: 600; }
+.repo-desc { font-size: 12px; opacity: .5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mgh { font-size: 11px; opacity: .6; margin-left: 6px; }
+.gh-prompt .input-sm { padding: 5px 10px; font-size: 13px; width: 180px; }
+.muted { opacity: .6; font-size: 13px; }
 .link-x { background: none; border: 0; color: inherit; opacity: .5; cursor: pointer; font-size: 16px; line-height: 1; }
 .link-x:hover { opacity: 1; }

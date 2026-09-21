@@ -28,6 +28,11 @@ export default function App() {
   // 토큰 만료/무효화로 401을 받으면 어느 화면에 있든 로그인 화면으로 돌려보낸다
   useEffect(() => { onUnauthorized(handleLogout) }, [])
 
+  // 새로고침하면 로그인 때 받은 이름이 사라진다 — 토큰이 남아 있으면 서버에서 되찾는다
+  useEffect(() => {
+    if (token && !username) api.getMe(token).then((me) => setUsername(me.name)).catch(() => {})
+  }, [token, username])
+
   if (screen === 'login') {
     return (
       <Login

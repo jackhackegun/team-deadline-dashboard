@@ -1,15 +1,19 @@
 import { useState } from 'react'
-import { unitsOf, deadlineState, deadlineLabel, isLinkClosed } from './dashboardMath'
+import { unitsOf, deadlineState, deadlineLabel, taskState, agoLabel } from './dashboardMath'
 
-const LINK_STATE_LABEL = { open: '열림', closed: '닫힘', merged: '머지됨' }
+const STATE_BADGE = {
+  approved: { text: '완료 승인됨', cls: 'badge-ok' },
+  pending: { text: '승인 대기', cls: 'badge-warn' },
+}
 
 export default function TaskCard({
-  task, assignee, members, isEditing, hasRepo,
-  onEdit, onCancelEdit, onSave, onDelete, onToggleDone, onToggleStep, onAddStep, onAddLink, onRemoveLink,
+  task, assignee, members, isEditing, isLeader, isMine, hasRepo,
+  onEdit, onCancelEdit, onSave, onDelete, onToggleStep, onAddStep,
+  onRequestReview, onApprove, onReject, onLinkCommit, onUnlinkCommit,
 }) {
   const [stepTitle, setStepTitle] = useState('')
-  const [linkRef, setLinkRef] = useState('')
-  const [linkError, setLinkError] = useState('')
+  const [sha, setSha] = useState('')
+  const [error, setError] = useState('')
 
   const state = deadlineState(task)
   const cardClass = state === 'overdue' ? 'overdue' : state === 'soon' ? 'soon' : ''
@@ -43,120 +47,117 @@ export default function TaskCard({
   }
 
   const [done, total] = unitsOf(task)
-  const hasSteps = task.steps.length > 0
-  const links = task.links || []
-  const hasLinks = links.length > 0
   const pct = total ? Math.round((done / total) * 100) : 0
+  const hasSteps = task.steps.length > 0
+  const commits = task.commits || []
+  const status = taskState(task)
+  const badge = STATE_BADGE[status]
 
-  async function submitLink() {
-    const ref = linkRef.trim()
-    if (!ref) return
+  async function run(fn) {
     try {
-      setLinkError('')
-      await onAddLink(ref)
-      setLinkRef('')
+      setError('')
+      await fn()
     } catch (err) {
-      setLinkError(err.message)
+      setError(err.message)
     }
   }
 
   return (
     <div className={`task-card ${cardClass}`}>
       <div className="task-head">
-        {hasSteps || hasLinks
-          ? <span className="step-count">{done}/{total}</span>
-          : <input type="checkbox" checked={task.done} onChange={(e) => onToggleDone(e.target.checked)} />}
-        <span className={`task-title ${task.done ? 'done' : ''}`}>{task.title}</span>
-        {task.auto_completed_at && <span className="badge badge-ok auto-badge">깃허브 자동 완료</span>}
-        {task.done_override && <span className="badge badge-warn auto-badge">직접 지정</span>}
+        <span className="step-count">{done}/{total}</span>
+        <span className={`task-title ${task.done ? 'done' : ''}`}>
+          <span className="task-ref">#{task.id}</span> {task.title}
+        </span>
+        {badge && <span className={`badge ${badge.cls} auto-badge`}>{badge.text}</span>}
         <span className={`task-meta ${metaClass}`}>{assignee ? assignee.name : '-'} · {deadlineLabel(task)}</span>
         <div className="task-actions">
-          {hasLinks && (
-            <button className="btn-icon" onClick={() => onToggleDone(!task.done)}>
-              {task.done ? '완료 해제' : '완료 처리'}
-            </button>
+          {/* 팀원은 완료를 '요청'만, 진행도를 올리는 건 팀장 */}
+          {!task.done && !task.review_requested_at && isMine && (
+            <button className="btn-icon" onClick={() => run(onRequestReview)}>완료 요청</button>
+          )}
+          {isLeader && task.review_requested_at && !task.done && (
+            <button className="btn-icon approve" onClick={() => run(onApprove)}>승인</button>
+          )}
+          {isLeader && (task.review_requested_at || task.done) && (
+            <button className="btn-icon" onClick={() => run(onReject)}>{task.done ? '승인 취소' : '반려'}</button>
           )}
           <button className="btn-icon" onClick={onEdit}>수정</button>
           <button className="btn-icon" onClick={onDelete}>삭제</button>
         </div>
       </div>
 
-      {hasLinks && (
-        <>
-          <div className="progress-bar"><span style={{ width: `${pct}%` }} /></div>
-          <div className="links">
-            {links.map((l) => (
-              <span className={`link-chip ${l.state}`} key={l.id}>
-                <a href={l.url} target="_blank" rel="noreferrer">
-                  <strong>{l.kind === 'pr' ? 'PR #' : '#'}{l.number}</strong> {l.title}
-                </a>
-                <span className={`link-state ${isLinkClosed(l) ? 'closed' : ''}`}>{LINK_STATE_LABEL[l.state]}</span>
-                <button type="button" className="link-x" title="연결 해제" onClick={() => onRemoveLink(l.id)}>×</button>
-              </span>
-            ))}
-          </div>
-        </>
+      <div className="progress-bar"><span style={{ width: `${pct}%` }} /></div>
+
+      {commits.length > 0 && (
+        <div className="commits">
+          {commits.map((c) => (
+            <span className="commit-row" key={c.id}>
+              <code className="sha">{c.sha.slice(0, 7)}</code>
+              <a href={c.url} target="_blank" rel="noreferrer">{c.message}</a>
+              <span className="commit-meta">{c.author_login || c.author_name} · {agoLabel(c.committed_at)}</span>
+              {c.linked_manually && <span className="badge badge-warn commit-manual">수동</span>}
+              <button type="button" className="link-x" title="연결 해제" onClick={() => run(() => onUnlinkCommit(c.id))}>×</button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {hasRepo && commits.length === 0 && (
+        <div className="commit-hint">
+          커밋 메시지에 <code>[#{task.id}]</code>을 적으면 여기에 자동으로 붙습니다.
+        </div>
       )}
 
       {hasRepo && (
-        <div className="step-add" style={{ marginTop: 10 }}>
-          <input
-            placeholder="+ 이슈/PR 연결 (예: 123 또는 PR 주소)"
-            value={linkRef}
-            onChange={(e) => setLinkRef(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitLink() } }}
-          />
-          <button type="button" className="btn btn-ghost btn-sm" onClick={submitLink}>연결</button>
-        </div>
-      )}
-      {linkError && <div className="field-err">{linkError}</div>}
-
-      {hasSteps && (
-        <>
-          <div className="progress-bar"><span style={{ width: `${pct}%` }} /></div>
-          <div className="steps">
-            {task.steps.map((s) => (
-              <div className={`step-row ${s.done ? 'done' : ''}`} key={s.id}>
-                <input type="checkbox" checked={s.done} onChange={(e) => onToggleStep(s.id, e.target.checked)} />
-                <label>{s.title}</label>
-              </div>
-            ))}
-            <div className="step-add">
-              <input placeholder="+ 단계 추가" value={stepTitle} onChange={(e) => setStepTitle(e.target.value)} />
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => {
-                  const title = stepTitle.trim()
-                  if (!title) return
-                  onAddStep(title)
-                  setStepTitle('')
-                }}
-              >
-                추가
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-
-      {!hasSteps && !hasLinks && (
-        <div className="step-add" style={{ marginTop: 10 }}>
-          <input placeholder="+ 로드맵 단계로 나누기" value={stepTitle} onChange={(e) => setStepTitle(e.target.value)} />
+        <div className="step-add" style={{ marginTop: 8 }}>
+          <input placeholder="+ 커밋 해시로 직접 붙이기 (예: a1b2c3d)" value={sha} onChange={(e) => setSha(e.target.value)} />
           <button
             type="button"
             className="btn btn-ghost btn-sm"
             onClick={() => {
-              const title = stepTitle.trim()
-              if (!title) return
-              onAddStep(title)
-              setStepTitle('')
+              const value = sha.trim()
+              if (!value) return
+              run(async () => { await onLinkCommit(value); setSha('') })
             }}
           >
-            추가
+            붙이기
           </button>
         </div>
       )}
+
+      {error && <div className="field-err">{error}</div>}
+
+      {hasSteps && (
+        <div className="steps">
+          {task.steps.map((s) => (
+            <div className={`step-row ${s.done ? 'done' : ''}`} key={s.id}>
+              <input type="checkbox" checked={s.done} onChange={(e) => onToggleStep(s.id, e.target.checked)} />
+              <label>{s.title}</label>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="step-add" style={{ marginTop: 8 }}>
+        <input
+          placeholder={hasSteps ? '+ 단계 추가' : '+ 로드맵 단계로 나누기'}
+          value={stepTitle}
+          onChange={(e) => setStepTitle(e.target.value)}
+        />
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => {
+            const title = stepTitle.trim()
+            if (!title) return
+            onAddStep(title)
+            setStepTitle('')
+          }}
+        >
+          추가
+        </button>
+      </div>
     </div>
   )
 }

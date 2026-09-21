@@ -28,8 +28,20 @@ class TeamJoin(BaseModel):
     invite_code: str
 
 
-class GithubConnect(BaseModel):
-    repo: str  # "owner/name" 또는 GitHub URL
+class GithubOrgConnect(BaseModel):
+    org: str  # 오가니제이션 이름
+
+
+class RepoSelection(BaseModel):
+    repos: list[str]  # "org/name" 목록
+
+
+class CommitLink(BaseModel):
+    sha: str
+
+
+class MeUpdate(BaseModel):
+    github_login: Optional[str] = None
 
 
 class TeamOut(BaseModel):
@@ -37,6 +49,14 @@ class TeamOut(BaseModel):
     name: str
     invite_code: str
     role: str
+
+
+class RepoStatus(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    full_name: str
+    last_sync_at: Optional[datetime] = None
+    last_error: Optional[str] = None
 
 
 class StepOut(BaseModel):
@@ -68,19 +88,18 @@ class TaskUpdate(BaseModel):
     done: Optional[bool] = None
 
 
-class LinkCreate(BaseModel):
-    ref: str  # "123", "#123", 또는 이슈/PR URL
-
-
-class LinkOut(BaseModel):
+class CommitOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    kind: str
-    number: int
-    title: Optional[str] = None
-    state: str
-    url: Optional[str] = None
+    sha: str
+    repo: str
+    message: str
+    author_login: Optional[str] = None
+    author_name: Optional[str] = None
+    url: str
+    committed_at: datetime
+    linked_manually: bool = False
 
 
 class TaskOut(BaseModel):
@@ -93,10 +112,11 @@ class TaskOut(BaseModel):
     deadline: datetime
     done: bool
     created_by: int
-    auto_completed_at: Optional[datetime] = None
-    done_override: bool = False
+    review_requested_at: Optional[datetime] = None
+    approved_at: Optional[datetime] = None
+    approved_by: Optional[int] = None
     steps: list[StepOut] = []
-    links: list[LinkOut] = []
+    commits: list[CommitOut] = []
 
 
 class MemberProgress(BaseModel):
@@ -105,6 +125,7 @@ class MemberProgress(BaseModel):
     role: str
     progress_pct: int
     overdue_count: int
+    github_login: Optional[str] = None
 
 
 class DashboardOut(BaseModel):
@@ -113,6 +134,7 @@ class DashboardOut(BaseModel):
     progress_pct: int
     members: list[MemberProgress]
     tasks: list[TaskOut]
-    github_repo: Optional[str] = None
-    github_last_sync_at: Optional[datetime] = None
-    github_last_error: Optional[str] = None
+    github_org: Optional[str] = None
+    repos: list[RepoStatus] = []
+    my_role: str = "member"
+    pending_review_count: int = 0

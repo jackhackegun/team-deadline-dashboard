@@ -33,16 +33,26 @@ export const api = {
   deleteTeam: (token, teamId) => request(`/teams/${teamId}`, { method: 'DELETE', token }),
 
   getDashboard: (token, teamId) => request(`/teams/${teamId}/dashboard`, { token }),
-  getGithub: (token, teamId) => request(`/teams/${teamId}/github`, { token }),
-  connectGithub: (token, teamId, repo) => request(`/teams/${teamId}/github`, { method: 'PUT', token, body: { repo } }),
-  disconnectGithub: (token, teamId) => request(`/teams/${teamId}/github`, { method: 'DELETE', token }),
+
+  getMe: (token) => request('/auth/me', { token }),
+  setGithubLogin: (token, githubLogin) => request('/auth/me', { method: 'PATCH', token, body: { github_login: githubLogin } }),
+
+  connectOrg: (token, teamId, org) => request(`/teams/${teamId}/github/org`, { method: 'PUT', token, body: { org } }),
+  disconnectOrg: (token, teamId) => request(`/teams/${teamId}/github/org`, { method: 'DELETE', token }),
+  browseOrgRepos: (token, teamId) => request(`/teams/${teamId}/github/org/repos`, { token }),
+  selectRepos: (token, teamId, repos) => request(`/teams/${teamId}/github/repos`, { method: 'PUT', token, body: { repos } }),
+  listCommits: (token, teamId) => request(`/teams/${teamId}/github/commits`, { token }),
   createTask: (token, teamId, payload) => request(`/teams/${teamId}/tasks`, { method: 'POST', token, body: payload }),
   updateTask: (token, taskId, patch) => request(`/tasks/${taskId}`, { method: 'PATCH', token, body: patch }),
   deleteTask: (token, taskId) => request(`/tasks/${taskId}`, { method: 'DELETE', token }),
   addStep: (token, taskId, title) => request(`/tasks/${taskId}/steps`, { method: 'POST', token, body: { title } }),
-  addLink: (token, taskId, ref) => request(`/tasks/${taskId}/links`, { method: 'POST', token, body: { ref } }),
-  removeLink: (token, taskId, linkId) => request(`/tasks/${taskId}/links/${linkId}`, { method: 'DELETE', token }),
+  linkCommit: (token, taskId, sha) => request(`/tasks/${taskId}/commits`, { method: 'POST', token, body: { sha } }),
+  unlinkCommit: (token, taskId, commitId) => request(`/tasks/${taskId}/commits/${commitId}`, { method: 'DELETE', token }),
   syncGithub: (token, teamId) => request(`/teams/${teamId}/github/sync`, { method: 'POST', token }),
+
+  requestReview: (token, taskId) => request(`/tasks/${taskId}/request-review`, { method: 'POST', token }),
+  approveTask: (token, taskId) => request(`/tasks/${taskId}/approve`, { method: 'POST', token }),
+  rejectTask: (token, taskId) => request(`/tasks/${taskId}/reject`, { method: 'POST', token }),
 
   toggleStep: (token, taskId, stepId, done) => request(`/tasks/${taskId}/steps/${stepId}`, { method: 'PATCH', token, body: { done } }),
 }

@@ -1,99 +1,112 @@
 import { useEffect, useState } from 'react'
 import { api } from './api'
 
-function shortDate(iso) {
-  const d = new Date(iso)
-  return `${d.getMonth() + 1}/${d.getDate()}`
-}
-
-// 팀에 연결된 GitHub 레포의 커밋/PR 활동 피드
-export default function Github({ token, teamId }) {
-  const [data, setData] = useState(null) // null = 로딩 중
+// 1단계: 팀장이 오가니제이션을 등록하고, 이 팀이 쓸 레포를 고른다
+export default function Github({ token, teamId, org, isLeader, onChanged }) {
+  const [input, setInput] = useState('')
+  const [repos, setRepos] = useState(null) // null = 아직 안 불러옴
+  const [selected, setSelected] = useState(new Set())
   const [error, setError] = useState('')
-  const [repoInput, setRepoInput] = useState('')
   const [busy, setBusy] = useState(false)
 
-  function load() {
-    setError('')
-    return api.getGithub(token, teamId).then(setData).catch((err) => setError(err.message))
-  }
+  useEffect(() => {
+    if (!org) { setRepos(null); return }
+    let alive = true
+    api.browseOrgRepos(token, teamId)
+      .then((data) => {
+        if (!alive) return
+        setRepos(data.repos)
+        setSelected(new Set(data.repos.filter((r) => r.selected).map((r) => r.full_name)))
+      })
+      .catch((err) => alive && setError(err.message))
+    return () => { alive = false }
+  }, [token, teamId, org])
 
-  useEffect(() => { setData(null); load() }, [token, teamId])
-
-  async function handleConnect(e) {
-    e.preventDefault()
-    const repo = repoInput.trim()
-    if (!repo) return
-    setBusy(true); setError('')
+  async function run(fn) {
+    setBusy(true)
     try {
-      await api.connectGithub(token, teamId, repo)
-      setRepoInput('')
-      await load()
+      setError('')
+      await fn()
+      onChanged()
     } catch (err) {
       setError(err.message)
-    } finally {
-      setBusy(false)
     }
-  }
-
-  async function handleDisconnect() {
-    if (!window.confirm('GitHub 레포 연결을 해제할까요?')) return
-    setBusy(true)
-    try { await api.disconnectGithub(token, teamId); await load() } finally { setBusy(false) }
+    setBusy(false)
   }
 
   return (
     <section className="panel" style={{ marginTop: 20 }}>
       <div className="panel-head">
-        <h2 className="panel-title"><span className="tdot" />GitHub 활동</h2>
-        {data?.repo && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <a className="gh-repo" href={`https://github.com/${data.repo}`} target="_blank" rel="noreferrer">{data.repo} ↗</a>
-            <button className="btn btn-ghost btn-sm" onClick={load} disabled={busy}>새로고침</button>
-            <button className="btn btn-danger-ghost btn-sm" onClick={handleDisconnect} disabled={busy}>연결 해제</button>
-          </div>
+        <h2 className="panel-title"><span className="tdot" />GitHub 오가니제이션</h2>
+        {org && isLeader && (
+          <button className="btn btn-ghost btn-sm" onClick={() => run(() => api.disconnectOrg(token, teamId))}>
+            연결 해제
+          </button>
         )}
       </div>
-
       <div className="panel-body">
-        {data === null ? (
-          <div className="empty">불러오는 중…</div>
-        ) : !data.repo ? (
-          <div className="gh-connect">
-            <p className="gh-hint">팀의 GitHub 레포를 연결하면 최근 커밋과 PR을 여기서 볼 수 있어요.</p>
-            <form className="inline-form" onSubmit={handleConnect}>
-              <input className="input" placeholder="owner/name  (예: facebook/react)" value={repoInput} onChange={(e) => setRepoInput(e.target.value)} required />
-              <button className="btn btn-primary" disabled={busy}>{busy ? '연결 중…' : '연결'}</button>
-            </form>
-            <div className="field-err">{error}</div>
-          </div>
-        ) : (
+        {!org && (
           <>
-            <div className="field-err">{error}</div>
-            <div className="gh-grid">
-              <div>
-                <div className="gh-sub">최근 커밋</div>
-                {data.commits.length ? data.commits.map((c) => (
-                  <a className="gh-row" key={c.sha} href={c.url} target="_blank" rel="noreferrer">
-                    <code className="gh-sha">{c.sha}</code>
-                    <span className="gh-msg">{c.message}</span>
-                    <span className="gh-meta">{c.author} · {shortDate(c.date)}</span>
-                  </a>
-                )) : <div className="empty">커밋이 없습니다.</div>}
+            <p className="muted">
+              {isLeader
+                ? '팀의 오가니제이션을 등록하면 그 안의 레포에서 커밋을 읽어옵니다.'
+                : '팀장이 오가니제이션을 등록하면 여기에 표시됩니다.'}
+            </p>
+            {isLeader && (
+              <div className="step-add">
+                <input
+                  placeholder="오가니제이션 이름 (예: vercel)"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                />
+                <button
+                  className="btn btn-primary btn-sm"
+                  disabled={busy}
+                  onClick={() => input.trim() && run(() => api.connectOrg(token, teamId, input.trim()))}
+                >
+                  {busy ? '확인 중…' : '등록'}
+                </button>
               </div>
-              <div>
-                <div className="gh-sub">Pull Request</div>
-                {data.pulls.length ? data.pulls.map((p) => (
-                  <a className="gh-row" key={p.number} href={p.url} target="_blank" rel="noreferrer">
-                    <span className={`pr-state ${p.state}`}>{p.state === 'merged' ? '머지됨' : p.state === 'open' ? '열림' : '닫힘'}</span>
-                    <span className="gh-msg">#{p.number} {p.title}</span>
-                    <span className="gh-meta">{p.author}</span>
-                  </a>
-                )) : <div className="empty">PR이 없습니다.</div>}
-              </div>
-            </div>
+            )}
           </>
         )}
+
+        {org && (
+          <>
+            <div className="sync-bar">
+              <span className="badge badge-ok">{org}</span>
+              <span className="sync-text">{selected.size}개 레포를 보고 있습니다</span>
+            </div>
+
+            {repos === null && <div className="empty">레포 목록 불러오는 중…</div>}
+            {repos && repos.length === 0 && <div className="empty">이 오가니제이션에 레포가 없습니다.</div>}
+            {repos && repos.length > 0 && (
+              <div className="repo-list">
+                {repos.map((r) => (
+                  <label className={`repo-row ${selected.has(r.full_name) ? 'on' : ''}`} key={r.full_name}>
+                    <input
+                      type="checkbox"
+                      disabled={!isLeader}
+                      checked={selected.has(r.full_name)}
+                      onChange={(e) => {
+                        const next = new Set(selected)
+                        if (e.target.checked) next.add(r.full_name)
+                        else next.delete(r.full_name)
+                        setSelected(next)
+                        run(() => api.selectRepos(token, teamId, [...next]))
+                      }}
+                    />
+                    <span className="repo-name">{r.full_name.split('/')[1]}</span>
+                    {r.private && <span className="badge badge-warn">비공개</span>}
+                    <span className="repo-desc">{r.description || ''}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {error && <div className="field-err">{error}</div>}
       </div>
     </section>
   )

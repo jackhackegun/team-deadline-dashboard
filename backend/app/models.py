@@ -18,6 +18,8 @@ class User(Base):
     email = Column(String, unique=True, nullable=False, index=True)
     password_hash = Column(String, nullable=False)
     name = Column(String, nullable=False)
+    # 커밋 작성자(author.login)와 팀원을 잇는 열쇠. 본인이 직접 입력한다
+    github_login = Column(String, nullable=True, index=True)
 
 
 class Team(Base):
@@ -26,10 +28,25 @@ class Team(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     invite_code = Column(String, unique=True, nullable=False)
-    github_repo = Column(String, nullable=True)  # "owner/name" 형식, 미연결 시 None
-    github_etag = Column(String, nullable=True)  # 조건부 요청용 — 안 바뀌었으면 304로 넘긴다
-    github_last_sync_at = Column(DateTime, nullable=True)
-    github_last_error = Column(String, nullable=True)  # 성공하면 None으로 지운다
+    github_org = Column(String, nullable=True)  # 깃허브 오가니제이션 이름
+
+    repos = relationship("TeamRepo", back_populates="team", cascade="all, delete-orphan")
+
+
+class TeamRepo(Base):
+    """org 안에서 이 팀이 실제로 쓰는 레포. org의 모든 레포를 훑지 않기 위해 골라서 담는다."""
+
+    __tablename__ = "team_repos"
+    __table_args__ = (UniqueConstraint("team_id", "full_name", name="uq_team_repo"),)
+
+    id = Column(Integer, primary_key=True)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    full_name = Column(String, nullable=False)  # "org/name"
+    etag = Column(String, nullable=True)  # 조건부 요청용
+    last_sync_at = Column(DateTime, nullable=True)
+    last_error = Column(String, nullable=True)
+
+    team = relationship("Team", back_populates="repos")
 
 
 class TeamMember(Base):
@@ -50,16 +67,22 @@ class Task(Base):
     assignee_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     deadline = Column(DateTime, nullable=False)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
-    done = Column(Boolean, default=False, nullable=False)
+    done = Column(Boolean, default=False, nullable=False)  # 팀장이 승인해야만 True가 된다
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     notified_at = Column(DateTime, nullable=True)
-    auto_completed_at = Column(DateTime, nullable=True)  # 이슈/PR 종료로 자동 완료된 시각
-    # 사람이 자동 완료를 직접 되돌렸다는 표시. 켜지면 동기화가 done을 건드리지 않는다
-    done_override = Column(Boolean, default=False, nullable=False)
+
+    # 완료 요청 → 팀장 승인 흐름
+    review_requested_at = Column(DateTime, nullable=True)
+    review_requested_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     steps = relationship("RoadmapStep", back_populates="task", cascade="all, delete-orphan")
-    links = relationship("TaskLink", back_populates="task", cascade="all, delete-orphan")
+    commits = relationship(
+        "TaskCommit", back_populates="task", cascade="all, delete-orphan",
+        order_by="TaskCommit.committed_at.desc()",
+    )
 
 
 class RoadmapStep(Base):
@@ -75,19 +98,21 @@ class RoadmapStep(Base):
     task = relationship("Task", back_populates="steps")
 
 
-class TaskLink(Base):
-    """할 일에 연결된 깃허브 이슈/PR. 하나의 할 일에 여러 개가 붙을 수 있다."""
+class TaskCommit(Base):
+    """할 일에 붙은 커밋. 팀장이 '정말 했는지' 확인하는 근거가 된다."""
 
-    __tablename__ = "task_links"
-    __table_args__ = (UniqueConstraint("task_id", "number", name="uq_task_link_number"),)
+    __tablename__ = "task_commits"
+    __table_args__ = (UniqueConstraint("task_id", "sha", name="uq_task_commit"),)
 
     id = Column(Integer, primary_key=True)
     task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
-    kind = Column(String, nullable=False)  # "issue" | "pr"
-    number = Column(Integer, nullable=False)
-    title = Column(String, nullable=True)
-    state = Column(String, nullable=False, default="open")  # "open" | "closed" | "merged"
-    url = Column(String, nullable=True)
-    last_synced_at = Column(DateTime, nullable=True)
+    sha = Column(String, nullable=False)
+    repo = Column(String, nullable=False)  # "org/name"
+    message = Column(String, nullable=False)  # 첫 줄만
+    author_login = Column(String, nullable=True)  # 깃허브 계정
+    author_name = Column(String, nullable=True)  # 계정을 못 찾을 때 표시용
+    url = Column(String, nullable=False)
+    committed_at = Column(DateTime, nullable=False)
+    linked_manually = Column(Boolean, default=False, nullable=False)  # 규칙이 아니라 손으로 붙인 커밋
 
-    task = relationship("Task", back_populates="links")
+    task = relationship("Task", back_populates="commits")
