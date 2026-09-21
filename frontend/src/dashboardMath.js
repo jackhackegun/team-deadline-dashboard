@@ -56,3 +56,35 @@ export function deadlineLabel(task) {
   const suffix = diffDays < 0 ? ' (초과)' : diffDays === 0 ? ' (D-day)' : diffDays === 1 ? ' (D-1)' : ''
   return `마감 ${mmdd}${suffix}`
 }
+
+
+// 할 일을 '지금 봐야 할 순서'로 묶는다. 한 목록에 섞여 있으면 뭘 해야 할지 알 수 없다.
+export function groupTasks(tasks, isLeader) {
+  const overdue = []
+  const pending = []
+  const active = []
+  const doneList = []
+
+  for (const t of tasks) {
+    if (t.done) doneList.push(t)
+    else if (t.review_requested_at) pending.push(t)
+    else if (deadlineState(t) === 'overdue') overdue.push(t)
+    else active.push(t)
+  }
+  const byDeadline = (a, b) => new Date(a.deadline) - new Date(b.deadline)
+  ;[overdue, pending, active, doneList].forEach((g) => g.sort(byDeadline))
+
+  // 팀장은 승인이 밀리면 팀 전체가 막히므로 승인 대기를 맨 위로
+  const groups = isLeader
+    ? [
+        { key: 'pending', title: '승인 대기', tone: 'wait', tasks: pending },
+        { key: 'overdue', title: '마감 초과', tone: 'danger', tasks: overdue },
+      ]
+    : [
+        { key: 'overdue', title: '마감 초과', tone: 'danger', tasks: overdue },
+        { key: 'pending', title: '승인 기다리는 중', tone: 'wait', tasks: pending },
+      ]
+  groups.push({ key: 'active', title: '진행 중', tone: 'plain', tasks: active })
+  groups.push({ key: 'done', title: '완료', tone: 'done', tasks: doneList })
+  return groups.filter((g) => g.tasks.length)
+}

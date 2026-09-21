@@ -3,7 +3,7 @@ import Navbar from './Navbar'
 import Gauge from './Gauge'
 import TaskCard from './TaskCard'
 import Github from './Github'
-import { syncStatus } from './dashboardMath'
+import { syncStatus, groupTasks } from './dashboardMath'
 import { api } from './api'
 
 // GET /teams/:id/dashboard + task/step CRUD
@@ -117,7 +117,6 @@ export default function Dashboard({ token, teamId, username, onBack, onLogout })
             <div className="hub">
               <div className="hub-core"><Gauge percent={dashboard.progress_pct} large /></div>
               <div className="hub-cap"><span className="lead">{dashboard.team_name}</span>팀 전체 진행률</div>
-              <div className="link-down" />
               <div className="bus">
                 <div className="node"><div className="v">{dashboard.members.length}</div><div className="l">멤버</div></div>
                 <div className="link-line" />
@@ -149,28 +148,36 @@ export default function Dashboard({ token, teamId, username, onBack, onLogout })
               </form>
 
               <div style={{ marginTop: 18 }}>
-                {dashboard.tasks.length ? dashboard.tasks.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    assignee={dashboard.members.find((m) => m.user_id === task.assignee_id)}
-                    members={dashboard.members}
-                    isEditing={editingTaskId === task.id}
-                    hasRepo={Boolean(dashboard.repos?.length)}
-                    isLeader={isLeader}
-                    isMine={task.assignee_id === me?.id}
-                    onEdit={() => setEditingTaskId(task.id)}
-                    onCancelEdit={() => setEditingTaskId(null)}
-                    onSave={async (id, patch) => { await api.updateTask(token, id, patch); setEditingTaskId(null); refresh() }}
-                    onDelete={async () => { await api.deleteTask(token, task.id); refresh() }}
-                    onToggleStep={async (stepId, checked) => { await api.toggleStep(token, task.id, stepId, checked); refresh() }}
-                    onAddStep={async (title) => { await api.addStep(token, task.id, title); refresh() }}
-                    onRequestReview={async () => { await api.requestReview(token, task.id); refresh() }}
-                    onApprove={async () => { await api.approveTask(token, task.id); refresh() }}
-                    onReject={async () => { await api.rejectTask(token, task.id); refresh() }}
-                    onLinkCommit={async (sha) => { await api.linkCommit(token, task.id, sha); refresh() }}
-                    onUnlinkCommit={async (commitId) => { await api.unlinkCommit(token, task.id, commitId); refresh() }}
-                  />
+                {dashboard.tasks.length ? groupTasks(dashboard.tasks, isLeader).map((group) => (
+                  <div className={`task-group tone-${group.tone}`} key={group.key}>
+                    <div className="group-head">
+                      <span className="group-title">{group.title}</span>
+                      <span className="group-count">{group.tasks.length}</span>
+                    </div>
+                    {group.tasks.map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        assignee={dashboard.members.find((m) => m.user_id === task.assignee_id)}
+                        members={dashboard.members}
+                        isEditing={editingTaskId === task.id}
+                        hasRepo={Boolean(dashboard.repos?.length)}
+                        isLeader={isLeader}
+                        isMine={task.assignee_id === me?.id}
+                        onEdit={() => setEditingTaskId(task.id)}
+                        onCancelEdit={() => setEditingTaskId(null)}
+                        onSave={async (id, patch) => { await api.updateTask(token, id, patch); setEditingTaskId(null); refresh() }}
+                        onDelete={async () => { await api.deleteTask(token, task.id); refresh() }}
+                        onToggleStep={async (stepId, checked) => { await api.toggleStep(token, task.id, stepId, checked); refresh() }}
+                        onAddStep={async (title) => { await api.addStep(token, task.id, title); refresh() }}
+                        onRequestReview={async () => { await api.requestReview(token, task.id); refresh() }}
+                        onApprove={async () => { await api.approveTask(token, task.id); refresh() }}
+                        onReject={async () => { await api.rejectTask(token, task.id); refresh() }}
+                        onLinkCommit={async (sha) => { await api.linkCommit(token, task.id, sha); refresh() }}
+                        onUnlinkCommit={async (commitId) => { await api.unlinkCommit(token, task.id, commitId); refresh() }}
+                      />
+                    ))}
+                  </div>
                 )) : <div className="empty">아직 할 일이 없습니다. 위에서 첫 할 일을 추가해 보세요.</div>}
               </div>
             </div>

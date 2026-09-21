@@ -1,27 +1,23 @@
 import { useState } from 'react'
 import { unitsOf, deadlineState, deadlineLabel, taskState, agoLabel } from './dashboardMath'
 
-const STATE_BADGE = {
-  approved: { text: '완료 승인됨', cls: 'badge-ok' },
-  pending: { text: '승인 대기', cls: 'badge-warn' },
-}
-
 export default function TaskCard({
   task, assignee, members, isEditing, isLeader, isMine, hasRepo,
   onEdit, onCancelEdit, onSave, onDelete, onToggleStep, onAddStep,
   onRequestReview, onApprove, onReject, onLinkCommit, onUnlinkCommit,
 }) {
+  // 입력칸은 기본으로 접어둔다 — 카드마다 빈 칸이 널려 있으면 목록을 읽을 수가 없다
+  const [panel, setPanel] = useState(null) // 'step' | 'commit' | null
   const [stepTitle, setStepTitle] = useState('')
   const [sha, setSha] = useState('')
   const [error, setError] = useState('')
 
-  const state = deadlineState(task)
-  const cardClass = state === 'overdue' ? 'overdue' : state === 'soon' ? 'soon' : ''
-  const metaClass = state === 'overdue' ? 'overdue-text' : state === 'soon' ? 'soon-text' : ''
+  const dState = deadlineState(task)
+  const status = taskState(task)
 
   if (isEditing) {
     return (
-      <div className={`task-card ${cardClass}`}>
+      <div className="task-card editing">
         <form
           className="edit-form"
           onSubmit={(e) => {
@@ -48,10 +44,8 @@ export default function TaskCard({
 
   const [done, total] = unitsOf(task)
   const pct = total ? Math.round((done / total) * 100) : 0
-  const hasSteps = task.steps.length > 0
+  const steps = task.steps
   const commits = task.commits || []
-  const status = taskState(task)
-  const badge = STATE_BADGE[status]
 
   async function run(fn) {
     try {
@@ -62,102 +56,124 @@ export default function TaskCard({
     }
   }
 
+  function togglePanel(name) {
+    setError('')
+    setPanel(panel === name ? null : name)
+  }
+
   return (
-    <div className={`task-card ${cardClass}`}>
-      <div className="task-head">
-        <span className="step-count">{done}/{total}</span>
-        <span className={`task-title ${task.done ? 'done' : ''}`}>
-          <span className="task-ref">#{task.id}</span> {task.title}
-        </span>
-        {badge && <span className={`badge ${badge.cls} auto-badge`}>{badge.text}</span>}
-        <span className={`task-meta ${metaClass}`}>{assignee ? assignee.name : '-'} · {deadlineLabel(task)}</span>
-        <div className="task-actions">
-          {/* 팀원은 완료를 '요청'만, 진행도를 올리는 건 팀장 */}
-          {!task.done && !task.review_requested_at && isMine && (
-            <button className="btn-icon" onClick={() => run(onRequestReview)}>완료 요청</button>
+    <div className={`task-card ${status} ${dState === 'overdue' ? 'overdue' : ''}`}>
+      <div className="task-top">
+        <div className="task-main">
+          <div className="task-title-row">
+            <span className={`task-title ${task.done ? 'done' : ''}`}>{task.title}</span>
+            {status === 'pending' && <span className="chip chip-wait">승인 대기</span>}
+            {status === 'approved' && <span className="chip chip-done">완료</span>}
+          </div>
+          <div className="task-sub">
+            <span className="who">{assignee ? assignee.name : '담당자 없음'}</span>
+            <span className={`when ${dState === 'overdue' ? 'is-overdue' : dState === 'soon' ? 'is-soon' : ''}`}>
+              {deadlineLabel(task)}
+            </span>
+            {commits.length > 0 && <span className="meta-dot">커밋 {commits.length}</span>}
+            {steps.length > 0 && <span className="meta-dot">단계 {done}/{steps.length}</span>}
+          </div>
+        </div>
+
+        <div className="task-side">
+          {/* 지금 이 할 일에 할 수 있는 '진짜 행동' 하나만 눈에 띄게 둔다 */}
+          {isLeader && status === 'pending' && (
+            <button className="btn btn-primary btn-sm" onClick={() => run(onApprove)}>승인</button>
           )}
-          {isLeader && task.review_requested_at && !task.done && (
-            <button className="btn-icon approve" onClick={() => run(onApprove)}>승인</button>
+          {!isLeader && isMine && status === 'todo' && (
+            <button className="btn btn-ghost btn-sm" onClick={() => run(onRequestReview)}>완료 요청</button>
           )}
-          {isLeader && (task.review_requested_at || task.done) && (
-            <button className="btn-icon" onClick={() => run(onReject)}>{task.done ? '승인 취소' : '반려'}</button>
+          {isLeader && status === 'approved' && (
+            <button className="btn-quiet" onClick={() => run(onReject)}>승인 취소</button>
           )}
-          <button className="btn-icon" onClick={onEdit}>수정</button>
-          <button className="btn-icon" onClick={onDelete}>삭제</button>
+          {isLeader && status === 'pending' && (
+            <button className="btn-quiet" onClick={() => run(onReject)}>반려</button>
+          )}
         </div>
       </div>
 
-      <div className="progress-bar"><span style={{ width: `${pct}%` }} /></div>
+      {(steps.length > 0 || task.done) && (
+        <div className="progress-bar"><span style={{ width: `${pct}%` }} /></div>
+      )}
 
-      {commits.length > 0 && (
-        <div className="commits">
-          {commits.map((c) => (
-            <span className="commit-row" key={c.id}>
-              <code className="sha">{c.sha.slice(0, 7)}</code>
-              <a href={c.url} target="_blank" rel="noreferrer">{c.message}</a>
-              <span className="commit-meta">{c.author_login || c.author_name} · {agoLabel(c.committed_at)}</span>
-              {c.linked_manually && <span className="badge badge-warn commit-manual">수동</span>}
-              <button type="button" className="link-x" title="연결 해제" onClick={() => run(() => onUnlinkCommit(c.id))}>×</button>
-            </span>
+      {steps.length > 0 && (
+        <div className="steps">
+          {steps.map((s) => (
+            <label className={`step-row ${s.done ? 'done' : ''}`} key={s.id}>
+              <input type="checkbox" checked={s.done} onChange={(e) => onToggleStep(s.id, e.target.checked)} />
+              <span>{s.title}</span>
+            </label>
           ))}
         </div>
       )}
 
-      {hasRepo && commits.length === 0 && (
-        <div className="commit-hint">
-          커밋 메시지에 <code>[#{task.id}]</code>을 적으면 여기에 자동으로 붙습니다.
+      {commits.length > 0 && (
+        <div className="commits">
+          {commits.map((c) => (
+            <div className="commit-row" key={c.id}>
+              <code className="sha">{c.sha.slice(0, 7)}</code>
+              <a href={c.url} target="_blank" rel="noreferrer">{c.message}</a>
+              <span className="commit-meta">{c.author_login || c.author_name} · {agoLabel(c.committed_at)}</span>
+              <button type="button" className="row-x" title="연결 해제" onClick={() => run(() => onUnlinkCommit(c.id))}>×</button>
+            </div>
+          ))}
         </div>
       )}
 
-      {hasRepo && (
-        <div className="step-add" style={{ marginTop: 8 }}>
-          <input placeholder="+ 커밋 해시로 직접 붙이기 (예: a1b2c3d)" value={sha} onChange={(e) => setSha(e.target.value)} />
+      {/* 덜 쓰는 조작은 한 줄로 접어둔다 */}
+      <div className="task-tools">
+        <button className={`tool ${panel === 'step' ? 'on' : ''}`} onClick={() => togglePanel('step')}>단계 추가</button>
+        {hasRepo && (
+          <button className={`tool ${panel === 'commit' ? 'on' : ''}`} onClick={() => togglePanel('commit')}>커밋 붙이기</button>
+        )}
+        <span className="tool-gap" />
+        <button className="tool" onClick={onEdit}>수정</button>
+        <button className="tool danger" onClick={onDelete}>삭제</button>
+      </div>
+
+      {panel === 'step' && (
+        <div className="tool-panel">
+          <input
+            autoFocus placeholder="단계 이름 (예: 자료 조사)" value={stepTitle}
+            onChange={(e) => setStepTitle(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.nextSibling.click() } }}
+          />
           <button
-            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => {
+              const title = stepTitle.trim()
+              if (!title) return
+              run(async () => { await onAddStep(title); setStepTitle('') })
+            }}
+          >추가</button>
+        </div>
+      )}
+
+      {panel === 'commit' && (
+        <div className="tool-panel">
+          <input
+            autoFocus placeholder="커밋 해시 (예: a1b2c3d)" value={sha}
+            onChange={(e) => setSha(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.nextSibling.click() } }}
+          />
+          <button
             className="btn btn-ghost btn-sm"
             onClick={() => {
               const value = sha.trim()
               if (!value) return
               run(async () => { await onLinkCommit(value); setSha('') })
             }}
-          >
-            붙이기
-          </button>
+          >붙이기</button>
+          <span className="tool-hint">커밋 메시지에 <code>[#{task.id}]</code>을 적으면 자동으로 붙습니다</span>
         </div>
       )}
 
       {error && <div className="field-err">{error}</div>}
-
-      {hasSteps && (
-        <div className="steps">
-          {task.steps.map((s) => (
-            <div className={`step-row ${s.done ? 'done' : ''}`} key={s.id}>
-              <input type="checkbox" checked={s.done} onChange={(e) => onToggleStep(s.id, e.target.checked)} />
-              <label>{s.title}</label>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="step-add" style={{ marginTop: 8 }}>
-        <input
-          placeholder={hasSteps ? '+ 단계 추가' : '+ 로드맵 단계로 나누기'}
-          value={stepTitle}
-          onChange={(e) => setStepTitle(e.target.value)}
-        />
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm"
-          onClick={() => {
-            const title = stepTitle.trim()
-            if (!title) return
-            onAddStep(title)
-            setStepTitle('')
-          }}
-        >
-          추가
-        </button>
-      </div>
     </div>
   )
 }
