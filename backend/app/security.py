@@ -1,11 +1,10 @@
 import hashlib
 import hmac
-import os
 import secrets
 import time
 import jwt
 
-JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-change-me")
+from .config import JWT_SECRET  # 기본값 없음 — 미설정이면 기동 자체가 막힌다
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_SECONDS = 60 * 60 * 24 * 7  # 7일
 

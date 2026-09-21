@@ -8,5 +8,5 @@
 - [x] 6. task/step 엔드포인트 비회원 차단 테스트 — 현재 팀 대시보드 403은 테스트했지만, task 생성·수정·삭제·step 엔드포인트에 대한 비회원 접근 테스트가 없다 · backend/tests/test_teams.py · 작음
 - [x] 7. 깃허브 연동: org 등록 → 레포 선택 → 커밋을 할 일에 연결(`[#N]` 규칙) → 팀장 승인으로 진행도 상승 · backend/app/github_api.py, routers/{github,tasks}.py, frontend/src/{Github,TaskCard,Dashboard}.jsx · 큼
 - [ ] 8. 깃허브 OAuth 로그인 — 지금은 깃허브 아이디를 본인이 타이핑해서 등록한다(오타·사칭 가능). 비공개 org 레포도 서버 전역 `GITHUB_TOKEN` 하나에 의존한다. 깃허브에서 OAuth 앱 등록(Client ID/Secret) 필요 · 설계문서 §5.1 · 큼
-- [ ] 9. Postgres + Alembic 전환 — 지금은 SQLite 파일이고 `main.py`가 PRAGMA로 컬럼을 덧붙이는 임시 마이그레이션을 쓴다 · backend/app/main.py, database.py · 보통
-- [ ] 10. 배포 준비 — `JWT_SECRET` 기본값 제거(미설정 시 기동 실패), CORS 화이트리스트, 전역 에러 핸들러, `/healthz`, docker-compose · 설계문서 §5.6 · 보통
+- [ ] 9. Alembic 도입 — Postgres로는 전환했으나 스키마는 여전히 `create_all`로 만든다. 운영 중 컬럼 변경이 생기면 수동 작업이 필요하다 · backend/app/main.py · 보통
+- [x] 10. 배포 준비 — `JWT_SECRET` 기본값 제거(미설정 시 기동 실패), CORS 화이트리스트, `/healthz`, Postgres, docker-compose 3개 서비스 · 설계문서 §5.6 · 보통

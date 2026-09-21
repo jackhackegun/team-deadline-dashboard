@@ -6,3 +6,4 @@ pyjwt
 apscheduler
 pytest
 httpx
+psycopg2-binary

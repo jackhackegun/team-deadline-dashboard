@@ -7,3 +7,6 @@ frontend/dist/
 .DS_Store
 backend/demo.db
 backend/smoke.db
+
+# 배포 시크릿 — 절대 커밋하지 않는다
+.env

@@ -1,0 +1,53 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: dashboard
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD를 .env에 설정하세요}
+      POSTGRES_DB: dashboard
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      # API가 DB보다 먼저 뜨면 첫 연결이 실패한다 — 준비될 때까지 기다리게 한다
+      test: ["CMD-SHELL", "pg_isready -U dashboard -d dashboard"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg2://dashboard:${POSTGRES_PASSWORD}@db:5432/dashboard
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET을 .env에 설정하세요}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8080}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_SYNC_MINUTES: ${GITHUB_SYNC_MINUTES:-5}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      NOTIFY_FROM_EMAIL: ${NOTIFY_FROM_EMAIL:-noreply@team-deadline-dashboard.local}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz',timeout=3).status==200 else 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    # 포트를 밖으로 열지 않는다 — 브라우저는 web(nginx)의 /api로만 접근한다
+
+  web:
+    build: ./frontend
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  db-data:

@@ -21,7 +21,7 @@ from .models import Task, TaskCommit, Team, TeamRepo
 
 logger = logging.getLogger(__name__)
 
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")  # 비공개 org 레포 접근·요청 한도 완화용
+from .config import GITHUB_TOKEN  # 비공개 org 레포 접근·요청 한도 완화용
 ORG_RE = re.compile(r"^[\w.-]+$")
 REPO_RE = re.compile(r"^[\w.-]+/[\w.-]+$")
 

@@ -7,13 +7,44 @@
 - [API 명세서](docs/team-deadline-dashboard-api-spec.md)
 - [목업](mockup/index.html)
 
+## 배포 (Docker)
+
+```bash
+cp .env.example .env
+openssl rand -hex 32          # JWT_SECRET에 붙여넣기
+openssl rand -hex 24          # POSTGRES_PASSWORD에 붙여넣기
+docker compose up -d --build
+```
+
+`http://localhost:8080` 에서 뜬다. 구성은 세 컨테이너다.
+
+| 서비스 | 역할 | 포트 |
+|---|---|---|
+| `web` | nginx — 정적 파일 서빙 + `/api`를 백엔드로 프록시 | 8080 (외부 공개) |
+| `api` | FastAPI + 스케줄러 | 내부 전용 |
+| `db` | PostgreSQL 16, 볼륨에 영속 | 내부 전용 |
+
+`/api` 프록시로 프론트와 API가 같은 출처가 되므로 브라우저 CORS 문제가 없다.
+`api`와 `db`는 포트를 밖으로 열지 않는다 — 외부에서 직접 붙을 수 없다.
+
+시크릿이 비어 있으면 컨테이너가 **뜨지 않는다.** 개발용 기본값이 운영에 올라가는 사고를 막기 위한 것이다.
+
+```bash
+docker compose logs -f api     # 로그
+docker compose ps              # 상태 (api는 /healthz로 헬스체크)
+docker compose down            # 중지 (데이터는 볼륨에 남는다)
+docker compose down -v         # 데이터까지 삭제
+```
+
 ## 실행 (백엔드)
 ```bash
 cd backend
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+DEV_MODE=1 uvicorn app.main:app --reload
 ```
+
+`DEV_MODE=1`은 임시 시크릿을 만들어 주는 개발 전용 스위치다. 배포에서는 켜지 않는다.
 `http://localhost:8000` 에서 뜬다.
 
 ## 실행 (프론트엔드)
