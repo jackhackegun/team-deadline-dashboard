@@ -40,5 +40,9 @@ export const api = {
   updateTask: (token, taskId, patch) => request(`/tasks/${taskId}`, { method: 'PATCH', token, body: patch }),
   deleteTask: (token, taskId) => request(`/tasks/${taskId}`, { method: 'DELETE', token }),
   addStep: (token, taskId, title) => request(`/tasks/${taskId}/steps`, { method: 'POST', token, body: { title } }),
+  addLink: (token, taskId, ref) => request(`/tasks/${taskId}/links`, { method: 'POST', token, body: { ref } }),
+  removeLink: (token, taskId, linkId) => request(`/tasks/${taskId}/links/${linkId}`, { method: 'DELETE', token }),
+  syncGithub: (token, teamId) => request(`/teams/${teamId}/github/sync`, { method: 'POST', token }),
+
   toggleStep: (token, taskId, stepId, done) => request(`/tasks/${taskId}/steps/${stepId}`, { method: 'PATCH', token, body: { done } }),
 }

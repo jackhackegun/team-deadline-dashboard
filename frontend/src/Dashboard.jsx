@@ -3,6 +3,7 @@ import Navbar from './Navbar'
 import Gauge from './Gauge'
 import TaskCard from './TaskCard'
 import Github from './Github'
+import { syncLabel } from './dashboardMath'
 import { api } from './api'
 
 // GET /teams/:id/dashboard + task/step CRUD
@@ -13,6 +14,7 @@ export default function Dashboard({ token, teamId, username, onBack, onLogout })
   const [newTitle, setNewTitle] = useState('')
   const [newAssigneeId, setNewAssigneeId] = useState('')
   const [newDeadline, setNewDeadline] = useState('')
+  const [syncing, setSyncing] = useState(false)
 
   function refresh() {
     return api.getDashboard(token, teamId).then(setDashboard).catch((err) => setError(err.message))
@@ -52,6 +54,18 @@ export default function Dashboard({ token, teamId, username, onBack, onLogout })
     </>
   )
 
+  async function handleSync() {
+    setSyncing(true)
+    try {
+      await api.syncGithub(token, teamId)
+    } catch {
+      // 실패 사유는 대시보드의 github_last_error로 내려온다
+    }
+    await refresh()
+    setSyncing(false)
+  }
+
+  const sync = syncLabel(dashboard)
   const overdueTotal = dashboard.members.reduce((s, m) => s + m.overdue_count, 0)
   const doneCount = dashboard.tasks.filter((t) => t.done).length
 
@@ -63,6 +77,17 @@ export default function Dashboard({ token, teamId, username, onBack, onLogout })
           <span className="pill-badge"><span className="dot" /> 팀 대시보드</span>
           <h1>{dashboard.team_name}</h1>
           <p>팀 전체와 멤버별 진행 상황을 한눈에 확인하세요.</p>
+          {sync && (
+            <div className="sync-bar">
+              <span className={`badge ${dashboard.github_last_error ? 'badge-warn' : 'badge-ok'}`}>
+                {dashboard.github_repo}
+              </span>
+              <span className="sync-text">{sync}</span>
+              <button className="btn btn-ghost btn-sm" onClick={handleSync} disabled={syncing}>
+                {syncing ? '동기화 중…' : '지금 동기화'}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 오버뷰 — 회로형 허브 */}
@@ -107,6 +132,7 @@ export default function Dashboard({ token, teamId, username, onBack, onLogout })
                     assignee={dashboard.members.find((m) => m.user_id === task.assignee_id)}
                     members={dashboard.members}
                     isEditing={editingTaskId === task.id}
+                    hasRepo={Boolean(dashboard.github_repo)}
                     onEdit={() => setEditingTaskId(task.id)}
                     onCancelEdit={() => setEditingTaskId(null)}
                     onSave={async (id, patch) => { await api.updateTask(token, id, patch); setEditingTaskId(null); refresh() }}
@@ -114,6 +140,8 @@ export default function Dashboard({ token, teamId, username, onBack, onLogout })
                     onToggleDone={async (checked) => { await api.updateTask(token, task.id, { done: checked }); refresh() }}
                     onToggleStep={async (stepId, checked) => { await api.toggleStep(token, task.id, stepId, checked); refresh() }}
                     onAddStep={async (title) => { await api.addStep(token, task.id, title); refresh() }}
+                    onAddLink={async (ref) => { await api.addLink(token, task.id, ref); refresh() }}
+                    onRemoveLink={async (linkId) => { await api.removeLink(token, task.id, linkId); refresh() }}
                   />
                 )) : <div className="empty">아직 할 일이 없습니다. 위에서 첫 할 일을 추가해 보세요.</div>}
               </div>
