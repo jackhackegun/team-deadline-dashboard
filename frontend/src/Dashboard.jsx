@@ -200,6 +200,20 @@ export default function Dashboard({ token, teamId, username, onBack, onLogout })
                         {m.overdue_count ? `마감 초과 ${m.overdue_count}건` : '순조롭게 진행 중'}
                       </span>
                     </div>
+                    {isLeader && m.user_id !== me?.id && (
+                      <button
+                        className="btn-quiet"
+                        onClick={async () => {
+                          if (!window.confirm(`팀장을 ${m.name}님에게 넘깁니다. 이후 승인·설정은 ${m.name}님만 할 수 있습니다. 계속할까요?`)) return
+                          try {
+                            await api.transferLeader(token, teamId, m.user_id)
+                            refresh()
+                          } catch (err) { setError(err.message) }
+                        }}
+                      >
+                        팀장 위임
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

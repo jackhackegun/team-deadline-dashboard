@@ -28,6 +28,10 @@ class TeamJoin(BaseModel):
     invite_code: str
 
 
+class LeaderTransfer(BaseModel):
+    user_id: int
+
+
 class GithubOrgConnect(BaseModel):
     org: str  # 오가니제이션 이름
 

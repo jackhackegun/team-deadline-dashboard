@@ -39,6 +39,8 @@ export const api = {
   listTeams: (token) => request('/teams', { token }),
   createTeam: (token, name) => request('/teams', { method: 'POST', token, body: { name } }),
   joinTeam: (token, inviteCode) => request('/teams/join', { method: 'POST', token, body: { invite_code: inviteCode } }),
+  transferLeader: (token, teamId, userId) =>
+    request(`/teams/${teamId}/transfer-leader`, { method: 'POST', token, body: { user_id: userId } }),
   leaveTeam: (token, teamId) => request(`/teams/${teamId}/leave`, { method: 'DELETE', token }),
   deleteTeam: (token, teamId) => request(`/teams/${teamId}`, { method: 'DELETE', token }),
 

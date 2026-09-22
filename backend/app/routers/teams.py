@@ -4,11 +4,11 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from ..access import require_member
+from ..access import require_leader, require_member
 from ..database import get_db
 from ..deps import get_current_user
 from ..models import Role, Task, Team, TeamMember, User
-from ..schemas import DashboardOut, MemberProgress, TeamCreate, TeamJoin, TeamOut
+from ..schemas import DashboardOut, LeaderTransfer, MemberProgress, TeamCreate, TeamJoin, TeamOut
 from .tasks import task_units
 
 router = APIRouter(tags=["teams"])
@@ -82,12 +82,66 @@ def join_team(payload: TeamJoin, user: User = Depends(get_current_user), db: Ses
     return _team_out(team, Role.member)
 
 
+def _purge_team(db: Session, team_id: int) -> None:
+    """팀과 딸린 것들을 전부 지운다. 할 일의 단계·커밋은 relationship cascade로 함께 사라진다."""
+    for task in db.query(Task).filter(Task.team_id == team_id).all():
+        db.delete(task)
+    db.query(TeamMember).filter(TeamMember.team_id == team_id).delete()
+    db.delete(db.query(Team).get(team_id))
+
+
+@router.post("/teams/{team_id}/transfer-leader", response_model=TeamOut)
+def transfer_leader(team_id: int, payload: LeaderTransfer,
+                    user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """팀장 자리를 다른 팀원에게 넘긴다. 넘긴 사람은 일반 팀원이 된다."""
+    me = require_leader(db, team_id, user.id)
+    if payload.user_id == user.id:
+        raise HTTPException(status_code=400, detail="이미 팀장입니다.")
+
+    target = (
+        db.query(TeamMember)
+        .filter(TeamMember.team_id == team_id, TeamMember.user_id == payload.user_id)
+        .first()
+    )
+    if not target:
+        raise HTTPException(status_code=404, detail="그 팀의 팀원이 아닙니다.")
+
+    target.role = Role.leader
+    me.role = Role.member
+    db.commit()
+    team = db.query(Team).get(team_id)
+    return _team_out(team, Role.member, db)
+
+
 @router.delete("/teams/{team_id}/leave")
 def leave_team(team_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """팀에서 나간다.
+
+    팀장이 그냥 나가면 팀에 팀장이 없어져 승인도, 팀 삭제도, 깃허브 설정도
+    아무도 할 수 없는 상태가 된다. 그래서 팀장은 위임하거나 팀을 정리해야 한다.
+    """
     member = require_member(db, team_id, user.id)
+    others = (
+        db.query(TeamMember)
+        .filter(TeamMember.team_id == team_id, TeamMember.user_id != user.id)
+        .count()
+    )
+
+    if others == 0:
+        # 마지막 한 명 — 빈 팀을 남기면 아무도 지울 수 없는 팀이 된다
+        _purge_team(db, team_id)
+        db.commit()
+        return {"team_deleted": True}
+
+    if member.role == Role.leader:
+        raise HTTPException(
+            status_code=400,
+            detail="팀장은 바로 나갈 수 없습니다. 먼저 다른 팀원에게 팀장을 위임하거나 팀을 삭제하세요.",
+        )
+
     db.delete(member)
     db.commit()
-    return {}
+    return {"team_deleted": False}
 
 
 @router.delete("/teams/{team_id}")
@@ -95,11 +149,7 @@ def delete_team(team_id: int, user: User = Depends(get_current_user), db: Sessio
     member = require_member(db, team_id, user.id)
     if member.role != Role.leader:
         raise HTTPException(status_code=403, detail="Only the leader can delete the team")
-    team = db.query(Team).get(team_id)
-    for task in db.query(Task).filter(Task.team_id == team_id).all():
-        db.delete(task)  # RoadmapStep은 relationship cascade로 함께 삭제됨
-    db.query(TeamMember).filter(TeamMember.team_id == team_id).delete()
-    db.delete(team)
+    _purge_team(db, team_id)
     db.commit()
     return {}
 

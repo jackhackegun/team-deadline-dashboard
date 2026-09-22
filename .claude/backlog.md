@@ -10,3 +10,4 @@
 - [ ] 8. 깃허브 OAuth 로그인 — 지금은 깃허브 아이디를 본인이 타이핑해서 등록한다(오타·사칭 가능). 비공개 org 레포도 서버 전역 `GITHUB_TOKEN` 하나에 의존한다. 깃허브에서 OAuth 앱 등록(Client ID/Secret) 필요 · 설계문서 §5.1 · 큼
 - [ ] 9. Alembic 도입 — Postgres로는 전환했으나 스키마는 여전히 `create_all`로 만든다. 운영 중 컬럼 변경이 생기면 수동 작업이 필요하다 · backend/app/main.py · 보통
 - [x] 10. 배포 준비 — `JWT_SECRET` 기본값 제거(미설정 시 기동 실패), CORS 화이트리스트, `/healthz`, Postgres, docker-compose 3개 서비스 · 설계문서 §5.6 · 보통
+- [x] 11. 리더 이탈 시 팀 동결 버그 — 팀장이 나가면 승인·팀 삭제·깃허브 설정을 아무도 못 하는 좀비 팀이 됐다. 팀장 위임 엔드포인트 추가, 마지막 멤버가 나가면 팀도 정리 · backend/app/routers/teams.py, frontend/src/Dashboard.jsx · 보통

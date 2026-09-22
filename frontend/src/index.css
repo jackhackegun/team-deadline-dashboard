@@ -611,3 +611,7 @@ input, select { font-family: inherit; color: var(--text); }
   .team-bar { margin: 14px 0 12px; }
   .tb-name h1 { font-size: 19px; }
 }
+
+
+/* 멤버 행 — 오른쪽에 팀장 위임 버튼이 붙는다 */
+.member-row .minfo { flex: 1; min-width: 0; }
