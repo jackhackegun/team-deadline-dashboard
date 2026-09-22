@@ -3,6 +3,7 @@ import Navbar from './Navbar'
 import Gauge from './Gauge'
 import TaskCard from './TaskCard'
 import Github from './Github'
+import InviteCode from './InviteCode'
 import { syncStatus, groupTasks } from './dashboardMath'
 import { api } from './api'
 
@@ -208,6 +209,14 @@ export default function Dashboard({ token, teamId, username, onBack, onLogout })
 
         {tab === 'settings' && (
           <>
+            <section className="panel">
+              <div className="panel-head"><h2 className="panel-title"><span className="tdot" />팀원 초대</h2></div>
+              <div className="panel-body">
+                <p className="muted">이 코드를 받은 사람은 &lsquo;내 팀&rsquo; 화면에서 합류할 수 있습니다.</p>
+                <InviteCode teamName={dashboard.team_name} code={dashboard.invite_code} />
+              </div>
+            </section>
+
             <section className="panel">
               <div className="panel-head"><h2 className="panel-title"><span className="tdot" />내 깃허브 아이디</h2></div>
               <div className="panel-body">

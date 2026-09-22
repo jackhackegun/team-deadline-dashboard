@@ -139,6 +139,7 @@ def get_dashboard(team_id: int, user: User = Depends(get_current_user), db: Sess
     return DashboardOut(
         team_id=team.id, team_name=team.name, progress_pct=_pct(team_done, team_total),
         members=members_out, tasks=tasks,
+        invite_code=team.invite_code,
         github_org=team.github_org,
         repos=team.repos,
         my_role=my_member.role if my_member else "member",

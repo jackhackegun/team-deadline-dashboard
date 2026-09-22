@@ -113,3 +113,11 @@ def test_team_list_carries_summary(client):
     assert summary["progress_pct"] == 33  # 3개 중 1개 승인
     assert summary["overdue_count"] == 1
     assert summary["pending_review_count"] == 1
+
+
+def test_dashboard_carries_invite_code(client):
+    """팀 안에서도 초대코드를 볼 수 있어야 한다 — 목록으로 되돌아가지 않고 팀원을 부를 수 있게."""
+    leader = _signup(client, "invite@test.com", "리더")
+    team = client.post("/teams", json={"name": "초대"}, headers=leader).json()
+    dash = client.get(f"/teams/{team['id']}/dashboard", headers=leader).json()
+    assert dash["invite_code"] == team["invite_code"]

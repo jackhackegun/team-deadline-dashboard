@@ -1,36 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import Navbar from './Navbar'
+import InviteCode from './InviteCode'
 import { api } from './api'
 
 function TeamCard({ team, onOpen, onLeaveOrDelete }) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [copyState, setCopyState] = useState(null) // 'ok' | 'fail' | null
   const menuRef = useRef(null)
 
+  // 메뉴 바깥을 누르면 닫는다
   useEffect(() => {
     if (!menuOpen) return
     const close = (e) => { if (!menuRef.current?.contains(e.target)) setMenuOpen(false) }
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
   }, [menuOpen])
-
-  async function copyInvite(e) {
-    e.stopPropagation()
-    // await 뒤에는 e.currentTarget이 비므로 지금 붙잡아 둔다
-    const button = e.currentTarget
-    const text = `[${team.name}] 팀에 초대합니다. 초대코드: ${team.invite_code}`
-    let ok = false
-    try {
-      await navigator.clipboard.writeText(text)
-      ok = true
-    } catch {
-      // http 환경이나 권한 거부 — 됐다고 거짓말하지 않고, 코드를 선택해 두어 바로 복사할 수 있게 한다
-      const code = button?.querySelector?.('code')
-      if (code) window.getSelection()?.selectAllChildren(code)
-    }
-    setCopyState(ok ? 'ok' : 'fail')
-    setTimeout(() => setCopyState(null), 2000)
-  }
 
   const isLeader = team.role === 'leader'
   const alerts = [
@@ -54,7 +37,6 @@ function TeamCard({ team, onOpen, onLeaveOrDelete }) {
                   onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v) }}>⋯</button>
           {menuOpen && (
             <div className="menu">
-              <button onClick={(e) => { e.stopPropagation(); setMenuOpen(false); copyInvite(e) }}>초대코드 복사</button>
               <button className="danger"
                       onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onLeaveOrDelete(team) }}>
                 {isLeader ? '팀 삭제' : '팀 나가기'}
@@ -75,10 +57,7 @@ function TeamCard({ team, onOpen, onLeaveOrDelete }) {
         {alerts.map((a) => <span className={`tc-alert ${a.tone}`} key={a.text}>{a.text}</span>)}
       </div>
 
-      <button className="tc-invite" onClick={copyInvite} title="초대 문구를 클립보드에 복사">
-        <code>{team.invite_code}</code>
-        <span>{copyState === 'ok' ? '복사됨' : copyState === 'fail' ? '복사 안 됨 — 직접 복사하세요' : '초대코드 복사'}</span>
-      </button>
+      <InviteCode teamName={team.name} code={team.invite_code} />
     </div>
   )
 }
@@ -100,10 +79,11 @@ export default function Teams({ token, username, onOpenTeam, onLogout }) {
     const name = newTeamName.trim()
     if (!name) return
     try {
-      const team = await api.createTeam(token, name)
+      await api.createTeam(token, name)
       setNewTeamName('')
       setError('')
-      onOpenTeam(team.id)  // 만들자마자 그 팀으로 들어간다
+      // 목록에 머문다 — 방금 만든 팀 카드에 초대코드가 같이 뜬다
+      reload()
     } catch (err) { setError(err.message) }
   }
 
@@ -111,10 +91,10 @@ export default function Teams({ token, username, onOpenTeam, onLogout }) {
     e.preventDefault()
     const code = joinCode.trim()
     try {
-      const team = await api.joinTeam(token, code)
+      await api.joinTeam(token, code)
       setJoinCode('')
       setError('')
-      onOpenTeam(team.id)
+      reload()
     } catch (err) { setError(err.message) }
   }
 

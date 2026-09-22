@@ -140,6 +140,7 @@ class DashboardOut(BaseModel):
     progress_pct: int
     members: list[MemberProgress]
     tasks: list[TaskOut]
+    invite_code: str = ""
     github_org: Optional[str] = None
     repos: list[RepoStatus] = []
     my_role: str = "member"
