@@ -7,7 +7,8 @@ from ..access import require_leader, require_member
 from ..database import get_db
 from ..deps import get_current_user
 from ..github_api import (
-    ORG_RE, REPO_RE, GithubError, gh_get, list_org_repos, recent_commits, sync_team,
+    ORG_RE, REPO_RE, GithubError, gh_get, invalidate_commit_cache,
+    list_org_repos, recent_commits, sync_team,
 )
 from ..models import Team, TeamRepo, User
 from ..schemas import GithubOrgConnect, RepoSelection
@@ -21,7 +22,9 @@ def _team(db: Session, team_id: int, user_id: int) -> Team:
 
 
 def _http(e: GithubError) -> HTTPException:
-    return HTTPException(status_code=e.status if e.status == 404 else 502, detail=e.message)
+    # 404(없음)와 429(한도 초과)는 그대로 내보낸다 — 502로 뭉뚱그리면 원인을 알 수 없다
+    passthrough = e.status in (404, 429)
+    return HTTPException(status_code=e.status if passthrough else 502, detail=e.message)
 
 
 @router.put("/teams/{team_id}/github/org")
@@ -91,6 +94,7 @@ def select_repos(team_id: int, payload: RepoSelection, user: User = Depends(get_
     for full_name in wanted - current.keys():
         team.repos.append(TeamRepo(full_name=full_name))
     db.commit()
+    invalidate_commit_cache(team_id)
     return {"repos": sorted(wanted)}
 
 
