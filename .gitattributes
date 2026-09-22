@@ -1,0 +1,7 @@
+# 윈도우에서 체크아웃해도 줄바꿈을 바꾸지 않는다.
+# Dockerfile·nginx.conf가 CRLF로 바뀌면 리눅스 컨테이너 안에서 깨진다.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.svg text eol=lf
